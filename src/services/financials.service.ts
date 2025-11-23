@@ -331,7 +331,10 @@ export class FinancialsService {
     if (exactMatch) return exactMatch.cogs;
   
     // Priority 2: Fuzzy Name match
-    const nameMatch = inventory.find(i => i.name && productNameClean.includes(i.name.toLowerCase()));
+    const nameMatch = inventory.find(i => {
+      const invName = (i.name || '').toLowerCase().trim();
+      return invName.length > 0 && productNameClean.includes(invName);
+    });
     return nameMatch ? nameMatch.cogs : 0;
   }
 
@@ -476,7 +479,7 @@ export class FinancialsService {
         throw new Error(`Không tìm thấy dòng tiêu đề hợp lệ trong file "${file.name}".`);
       }
 
-      const rawData: any[] = XLSX.utils.sheet_to_json(ws, { header: headerRowIndex });
+      const rawData: any[] = XLSX.utils.sheet_to_json(ws, { range: headerRowIndex });
 
       const cleanedData = rawData.map(row => 
         Object.fromEntries(
