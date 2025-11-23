@@ -622,4 +622,49 @@ export class FinancialsService {
       };
     });
   }
+
+  // New methods for GOD MODE V2
+  calculateGodModeSummary(masterData: KocPnlData[]) {
+    const summary = {
+      totalRevenue: 0,      // Tổng doanh số (GMV)
+      totalNMV: 0,          // Doanh thu thực (NMV)
+      totalKoc: masterData.length,
+      activeKoc: 0,         // KOC có đơn > 0
+      totalAdsCost: 0,
+      totalCOGS: 0,
+      totalCommission: 0,
+      totalNetProfit: 0,
+      avgReturnRate: 0
+    };
+
+    let totalOrders = 0;
+    let totalReturned = 0;
+
+    masterData.forEach(item => {
+      summary.totalRevenue += item.totalGmv; // Use totalGmv from order data
+      summary.totalNMV += item.nmv;
+      summary.totalAdsCost += item.adsCost;
+      summary.totalCOGS += item.totalCogs;
+      summary.totalCommission += item.totalCommission;
+      summary.totalNetProfit += item.netProfit;
+      
+      if (item.totalOrders > 0) summary.activeKoc++;
+      totalOrders += item.totalOrders;
+      totalReturned += item.failedOrders;
+    });
+
+    summary.avgReturnRate = totalOrders > 0 ? (totalReturned / totalOrders) * 100 : 0;
+    return summary;
+  }
+
+  classifyBCG(koc: KocPnlData, avgGMV: number, avgProfit: number): string {
+    // Trục tung: Lợi nhuận (Profit) | Trục hoành: Thị phần (GMV)
+    const highGMV = koc.totalGmv >= avgGMV;
+    const highProfit = koc.netProfit >= avgProfit;
+
+    if (highGMV && highProfit) return 'STAR';       // ⭐ Ngôi sao (Vít mạnh)
+    if (highGMV && !highProfit) return 'COW';       // 🐮 Bò sữa (Cần tối ưu chi phí)
+    if (!highGMV && highProfit) return 'QUESTION';  // ❓ Dấu hỏi (Tiềm năng, cần đẩy Ads)
+    return 'DOG';                                   // 🐕 Chó mực (Cắt bỏ)
+  }
 }

@@ -4,7 +4,7 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } 
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { User, TrialTracking, SystemPrompt, KnowledgeBaseItem, SystemConfig, TokenUsageLog } from '../../models/user.model';
-import { EnterpriseService } from '../../services/enterprise.service';
+import { EnterpriseService, AiModeConfig } from '../../services/enterprise.service';
 import { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -72,6 +72,14 @@ export class AdminPanelComponent implements OnInit {
     analysis_model: '',
   });
 
+  // --- NEW: AI Modes Config State ---
+  aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig> | null>(null);
+  aiModesConfigSaved = signal(false);
+
+  // Helper to iterate over object keys in the template
+  objectKeys = Object.keys as <T extends object>(obj: T) => Array<keyof T>;
+
+
   ngOnInit() {
     this.trialTrackings.set(this.authService.getTrialTrackingData());
     
@@ -88,6 +96,8 @@ export class AdminPanelComponent implements OnInit {
     this.initializeCustomModelUI(configs);
 
     this.tokenUsageLogs.set(this.enterpriseService.getTokenUsageLogs());
+
+    this.aiModesConfig.set(this.enterpriseService.getAiModesConfig());
   }
 
   private initializeCustomModelUI(configs: SystemConfig[]): void {
@@ -218,6 +228,29 @@ export class AdminPanelComponent implements OnInit {
     this.configSaved.set(true);
     // Data is already saved by the service on update, this is just for UI feedback
     setTimeout(() => this.configSaved.set(false), 3000);
+  }
+
+  // --- AI Modes Config Methods ---
+  updateAiMode(mode: 'fast' | 'standard' | 'deep', field: 'model' | 'prompt', value: string) {
+    this.aiModesConfig.update(currentConfig => {
+        if (!currentConfig) return null;
+        return {
+            ...currentConfig,
+            [mode]: {
+                ...currentConfig[mode],
+                [field]: value
+            }
+        };
+    });
+  }
+  
+  saveAiModesConfig() {
+    const newConfig = this.aiModesConfig();
+    if (newConfig) {
+      this.enterpriseService.updateAiModesConfig(newConfig);
+      this.aiModesConfigSaved.set(true);
+      setTimeout(() => this.aiModesConfigSaved.set(false), 3000);
+    }
   }
 
   // --- Trial Tracking Methods ---

@@ -13,6 +13,9 @@ const ACTIVITY_LOG_KEY = 'enterprise_activity_log';
 const CAMPAIGN_PLAN_KEY = 'enterprise_campaign_plan';
 const SYSTEM_CONFIG_KEY = 'enterprise_system_config';
 const TOKEN_LOG_KEY = 'enterprise_token_usage_logs';
+const AI_MODES_CONFIG_KEY = 'enterprise_ai_modes_config';
+
+export interface AiModeConfig { model: string; prompt: string; }
 
 const ADVISOR_SCHEMA = {
     type: 'OBJECT',
@@ -202,6 +205,13 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfig[] = [
     { config_key: 'chat_model', model_id: 'gemini-2.5-flash', description: 'Model dùng cho AI Chatbot (yêu cầu tốc độ nhanh).'},
 ];
 
+const DEFAULT_AI_MODES_CONFIG: Record<'fast' | 'standard' | 'deep', AiModeConfig> = {
+  fast: { model: 'gemini-2.5-flash', prompt: 'Từ dữ liệu tóm tắt, hãy phân tích nhanh (dưới 100 từ) về xu hướng chính, điểm mạnh và điểm yếu nổi bật nhất. Đưa ra 1 gợi ý hành động quan trọng nhất.' },
+  standard: { model: 'gemini-2.5-pro', prompt: 'Phân tích chi tiết hiệu quả các KOC dựa trên dữ liệu tóm tắt và top 5 KOC. Đánh giá sự chênh lệch giữa GMV và Lợi nhuận thực. Đề xuất chiến lược cho từng nhóm KOC trong ma trận BCG.' },
+  deep: { model: 'gemini-2.5-pro', prompt: 'Bạn là chuyên gia phân tích tài chính. Dựa vào dữ liệu P&L, hãy phân tích chuyên sâu về sức khỏe tài chính của chiến dịch. Đưa ra dự báo về dòng tiền, điểm hòa vốn, và các rủi ro tiềm ẩn. Đề xuất một chiến lược phân bổ ngân sách chi tiết để tối đa hóa Lợi Nhuận Ròng trong 30 ngày tới.' }
+};
+
+
 const PRICING: Record<string, { input: number; output: number }> = {
     "gemini-1.5-flash": { "input": 0.075 / 1000000, "output": 0.3 / 1000000 },
     "gemini-1.5-pro": { "input": 3.5 / 1000000, "output": 10.5 / 1000000 },
@@ -222,6 +232,7 @@ export class EnterpriseService {
   private campaignPlans = signal<CampaignPlan[]>([]);
   private systemConfigs = signal<SystemConfig[]>([]);
   private tokenUsageLogs = signal<TokenUsageLog[]>([]);
+  private aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig>>(DEFAULT_AI_MODES_CONFIG);
   
   // State for persisting AI advisor plan across views
   activeAdvisorPlan = signal<any | null>(null);
@@ -234,6 +245,7 @@ export class EnterpriseService {
     effect(() => this.saveToLocalStorage(CAMPAIGN_PLAN_KEY, this.campaignPlans()));
     effect(() => this.saveToLocalStorage(SYSTEM_CONFIG_KEY, this.systemConfigs()));
     effect(() => this.saveToLocalStorage(TOKEN_LOG_KEY, this.tokenUsageLogs()));
+    effect(() => this.saveToLocalStorage(AI_MODES_CONFIG_KEY, this.aiModesConfig()));
   }
 
   private saveToLocalStorage(key: string, data: any): void {
@@ -282,6 +294,14 @@ export class EnterpriseService {
     // Token Usage Logs
     const tokenLogJson = localStorage.getItem(TOKEN_LOG_KEY);
     this.tokenUsageLogs.set(tokenLogJson ? JSON.parse(tokenLogJson) : []);
+
+    // AI Modes Config
+    const aiModesConfigJson = localStorage.getItem(AI_MODES_CONFIG_KEY);
+    if (aiModesConfigJson) {
+        this.aiModesConfig.set(JSON.parse(aiModesConfigJson));
+    } else {
+        this.aiModesConfig.set(DEFAULT_AI_MODES_CONFIG);
+    }
   }
 
   private truncate(str: string | undefined | null, maxLength: number): string {
@@ -399,5 +419,14 @@ export class EnterpriseService {
           estimated_cost: cost
       };
       this.tokenUsageLogs.update(logs => [newLog, ...logs].slice(0, 200));
+  }
+
+  // --- AI Modes Config ---
+  getAiModesConfig(): Record<'fast' | 'standard' | 'deep', AiModeConfig> {
+    return this.aiModesConfig();
+  }
+
+  updateAiModesConfig(newConfig: Record<'fast' | 'standard' | 'deep', AiModeConfig>) {
+    this.aiModesConfig.set(newConfig);
   }
 }

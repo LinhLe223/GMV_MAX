@@ -5,9 +5,10 @@ import { KocPnlData, EnrichedOrderData, KocDetailItem, ProductPnlData } from '..
 import { PaginationComponent } from '../pagination/pagination.component';
 import { DataService } from '../../services/data.service';
 import { TiktokAd } from '../../models/tiktok-ad.model';
+import { EnterpriseService } from '../../services/enterprise.service';
+import { GeminiService } from '../../services/gemini.service';
 
 type DetailSortKey = keyof KocDetailItem;
-
 
 @Component({
   selector: 'app-god-mode',
@@ -19,8 +20,9 @@ type DetailSortKey = keyof KocDetailItem;
 export class GodModeComponent {
   financialsService = inject(FinancialsService);
   dataService = inject(DataService);
-  dashboardMetrics = this.financialsService.dashboardMetrics;
-  
+  enterpriseService = inject(EnterpriseService);
+  geminiService = inject(GeminiService);
+
   // --- View State ---
   selectedKoc = signal<KocPnlData | null>(null);
   viewMode = signal<'koc' | 'product'>('koc');
@@ -31,10 +33,40 @@ export class GodModeComponent {
   sortDirection = signal<'asc' | 'desc'>('desc');
   currentPage = signal(1);
   itemsPerPage = signal(20);
-  
+
   // --- Data ---
   kocData = this.financialsService.kocPnlData;
   productData = this.financialsService.productPnlData;
+
+  // --- V2 Summary & BCG State ---
+  summary = computed(() => {
+    const data = this.kocData();
+    if (data.length === 0) return null;
+    return this.financialsService.calculateGodModeSummary(data);
+  });
+
+  bcgGroups = computed(() => {
+    const data = this.kocData();
+    const summaryData = this.summary();
+    const groups: { [key: string]: KocPnlData[] } = { STAR: [], COW: [], QUESTION: [], DOG: [] };
+    if (!summaryData || data.length === 0) return groups;
+
+    const avgGMV = summaryData.totalRevenue / data.length;
+    const avgProfit = summaryData.totalNetProfit / data.length;
+
+    data.forEach(koc => {
+      const bcgLabel = this.financialsService.classifyBCG(koc, avgGMV, avgProfit);
+      groups[bcgLabel].push(koc);
+    });
+    return groups;
+  });
+
+  // --- V2 AI Assistant State ---
+  aiMode = signal<'fast' | 'standard' | 'deep'>('standard');
+  isAnalyzing = signal(false);
+  aiResult = signal<string | null>(null);
+  aiError = signal<string | null>(null);
+
 
   sortedData = computed(() => {
     const data = this.viewMode() === 'koc' ? this.kocData() : this.productData();
@@ -186,6 +218,44 @@ export class GodModeComponent {
       this.detailSortKey.set(key);
       this.detailSortDirection.set('desc');
     }
+  }
+
+  async analyzeAI(mode: 'fast' | 'standard' | 'deep') {
+    this.isAnalyzing.set(true);
+    this.aiError.set(null);
+    this.aiResult.set('');
+    this.aiMode.set(mode);
+
+    try {
+        const config = this.enterpriseService.getAiModesConfig();
+        const selectedConfig = config[mode];
+        if (!selectedConfig) {
+            throw new Error(`Cấu hình cho chế độ "${mode}" không tồn tại.`);
+        }
+
+        const context = JSON.stringify({
+            summary: this.summary(),
+            topKocs: this.kocData().slice(0, 5)
+        }, null, 2);
+
+        const fullPrompt = `${selectedConfig.prompt}\n\nDữ liệu:\n${context}`;
+        
+        const result = await this.geminiService.generateText(fullPrompt, selectedConfig.model);
+        this.aiResult.set(result);
+    } catch (e) {
+        this.aiError.set((e as Error).message);
+    } finally {
+        this.isAnalyzing.set(false);
+    }
+  }
+
+  formatResponse(text: string | null): string {
+    if (!text) return '';
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\* (.*?)(?:\n|$)/g, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      .replace(/\n/g, '<br>');
   }
 
   copyToClipboard(text: string) {

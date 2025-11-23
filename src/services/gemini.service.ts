@@ -37,6 +37,58 @@ export class GeminiService {
     return !!this.ai;
   }
 
+  async generateText(prompt: string, modelId: string = 'gemini-2.5-flash'): Promise<string> {
+    if (!this.ai) {
+        throw new Error("Lỗi: Gemini AI chưa được khởi tạo. Vui lòng kiểm tra API key.");
+    }
+
+    try {
+        this.authService.checkAndIncrementUsage();
+    } catch (e) {
+        throw e;
+    }
+    
+    let fullResponseText = '';
+    let usageMetadata: UsageMetadata | null = null;
+
+    try {
+        const response = await this.ai.models.generateContent({
+            model: modelId,
+            contents: prompt
+        });
+
+        fullResponseText = response.text;
+        usageMetadata = response.usageMetadata ?? null;
+        return fullResponseText;
+
+    } catch (error) {
+        console.error('Error calling Gemini API (generateText):', error);
+        const errorMessage = `Đã xảy ra lỗi khi phân tích dữ liệu. Lỗi: ${(error as Error).message}`;
+         this.enterpriseService.logActivity({
+          action_type: `analysis:generateText`,
+          input_data: prompt,
+          ai_response: `ERROR: ${errorMessage}`
+        });
+        throw new Error(errorMessage);
+    } finally {
+         if (fullResponseText) {
+             this.enterpriseService.logActivity({
+                action_type: `analysis:generateText`,
+                input_data: prompt,
+                ai_response: fullResponseText
+            });
+        }
+        if (usageMetadata) {
+            this.enterpriseService.logTokenUsage({
+                module_name: 'generateText',
+                model_used: modelId,
+                input_tokens: usageMetadata.promptTokenCount ?? 0,
+                output_tokens: usageMetadata.candidatesTokenCount ?? 0,
+            });
+        }
+    }
+  }
+
   async * getAnalysisStream(promptKey: string, data: any, mode: AnalysisMode, moduleKey: SystemConfig['config_key'], knowledgeContext: string = ''): AsyncGenerator<string> {
     if (!this.ai) {
         yield "Lỗi: Gemini AI chưa được khởi tạo. Vui lòng kiểm tra API key.";
