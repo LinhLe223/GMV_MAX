@@ -58,6 +58,8 @@ export interface KocPnlData {
   // Strategic Metrics
   breakEvenRoas: number;
   daysOnHand: number;
+  daysOnHandDisplay: string;
+  stockQuantity: number;
   healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
   aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | '';
 }
@@ -79,8 +81,9 @@ export interface KocDetailItem {
   videoName: string;
   productName: string;
   productId: string;
-  revenue: number;
+  nmv: number;
   cost: number;
+  profit: number;
   returnCount: number;
   commission: number;
   roi: number;
@@ -106,6 +109,8 @@ export interface ProductPnlData {
   breakEvenRoas: number;
   realRoas: number;
   daysOnHand: number;
+  daysOnHandDisplay: string;
+  stockQuantity: number;
   healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
   aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | 'STOCK_OUT' | '';
 }

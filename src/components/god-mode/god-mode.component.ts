@@ -171,75 +171,18 @@ export class GodModeComponent {
   });
   
   // --- Drill-Down View State ---
-  detailSortKey = signal<DetailSortKey>('revenue');
+  detailSortKey = signal<DetailSortKey>('nmv');
   detailSortDirection = signal<'asc' | 'desc'>('desc');
 
   // --- Drill-Down View Data ---
-  selectedKocOrders = computed(() => {
+  kocDetails = computed<KocDetailItem[]>(() => {
     const koc = this.selectedKoc();
     if (!koc) return [];
-    return this.financialsService.ordersWithCogsByKoc().get(koc.normalizedKocName) || [];
-  });
-
-  kocDetails = computed<KocDetailItem[]>(() => {
-    const orders = this.selectedKocOrders();
-    const koc = this.selectedKoc();
-    if (orders.length === 0 || !koc) return [];
-
-    const kocAds = this.dataService.kocReportStats().find(k => k.name.toLowerCase().trim() === koc.kocName.toLowerCase().trim());
-    const adsByVideoId = new Map<string, TiktokAd>(kocAds?.videos.map(v => [v.videoId, v]) || []);
-
-    const detailsByVideo = new Map<string, {
-        revenue: number;
-        returnCount: number;
-        commission: number;
-        productName: string;
-        productId: string;
-    }>();
-
-    for (const order of orders) {
-      const videoId = order.videoId || 'no-video';
-      if (!detailsByVideo.has(videoId)) {
-        detailsByVideo.set(videoId, {
-          revenue: 0,
-          returnCount: 0,
-          commission: 0,
-          productName: order.product_name,
-          productId: order.product_id,
-        });
-      }
-
-      const detail = detailsByVideo.get(videoId)!;
-      const isFailed = this.isFailedOrder(order);
-      if (!isFailed) {
-          detail.revenue += order.revenue;
-          detail.commission += order.commission;
-      } else {
-          detail.returnCount++;
-      }
-    }
     
-    const result: KocDetailItem[] = [];
-    for (const [videoId, data] of detailsByVideo.entries()) {
-        const adData = adsByVideoId.get(videoId);
-        const cost = adData?.cost || 0;
-        const roi = cost > 0 ? data.revenue / cost : 0;
-        const cir = data.revenue > 0 ? (cost / data.revenue) * 100 : 0;
-        
-        result.push({
-            videoId: videoId,
-            videoName: adData?.videoTitle || 'N/A',
-            productName: data.productName,
-            productId: data.productId,
-            revenue: data.revenue,
-            cost: cost,
-            returnCount: data.returnCount,
-            commission: data.commission,
-            roi: roi,
-            cir: cir,
-        });
-    }
-    return result;
+    return this.financialsService.getKocDetails(
+      koc.normalizedKocName,
+      this.dataService.videoData()
+    );
   });
 
   sortedKocDetails = computed(() => {
@@ -261,7 +204,7 @@ export class GodModeComponent {
 
   // --- Event Handlers & Helpers ---
   selectKoc(koc: KocPnlData): void {
-    this.selectedKoc.set(this.selectedKoc() === koc ? null : koc);
+    this.selectedKoc.update(current => current === koc ? null : koc);
   }
 
   onSort(key: string): void {
@@ -360,13 +303,6 @@ export class GodModeComponent {
         return { tag: '🚫 KHÔNG RA SỐ', color: 'bg-red-100 text-red-800' };
     }
     return { tag: '➖ Ổn định', color: 'bg-gray-100 text-gray-800' };
-  }
-  
-  isFailedOrder(order: EnrichedOrderData): boolean {
-    const status = (order.status || '').toLowerCase();
-    const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
-    const refundKeywords = ['hoàn tiền'];
-    return failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => status.includes(kw));
   }
 
   openWarRoom(item: KocPnlData | ProductPnlData) {

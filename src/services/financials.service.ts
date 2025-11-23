@@ -2,9 +2,10 @@
 
 
 
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
-import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData } from '../models/financial.model';
+import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem } from '../models/financial.model';
 import { DataService, KocReportStat } from './data.service';
 import { TiktokAd } from '../models/tiktok-ad.model';
 import { EnterpriseService } from './enterprise.service';
@@ -164,8 +165,9 @@ export class FinancialsService {
     
     const adsKocMap = new Map<string, KocReportStat>(adsKocStats.map(koc => [this.normalizeKoc(koc.name), koc]));
 
+    const inventoryData = this.inventoryData();
     const inventorySkuMap = new Map<string, InventoryData[]>();
-    this.inventoryData().forEach(item => {
+    inventoryData.forEach(item => {
         const key = (item.inventory_sku || '').toLowerCase().trim();
         if (key) {
             if (!inventorySkuMap.has(key)) inventorySkuMap.set(key, []);
@@ -174,7 +176,7 @@ export class FinancialsService {
     });
 
     const inventoryNameMap = new Map<string, InventoryData[]>();
-    this.inventoryData().forEach(item => {
+    inventoryData.forEach(item => {
         const key = this.normalizeName(item.name || '');
         if (key) {
             if (!inventoryNameMap.has(key)) inventoryNameMap.set(key, []);
@@ -202,6 +204,8 @@ export class FinancialsService {
         let totalGmv = 0, nmv = 0, totalCommission = 0, totalCogs = 0, failedOrders = 0, grossProfit = 0;
         let topRevenueOrder: OrderData | null = null;
         const enrichedOrders: EnrichedOrderData[] = [];
+        
+        const productsSoldByKoc = new Map<string, { soldQty: number }>();
 
         orders.forEach(order => {
             totalGmv += order.revenue;
@@ -228,6 +232,14 @@ export class FinancialsService {
                 if (!topRevenueOrder || order.revenue > topRevenueOrder.revenue) {
                     topRevenueOrder = order;
                 }
+                
+                const productKey = order.seller_sku;
+                if(productKey) {
+                    const current = productsSoldByKoc.get(productKey) || { soldQty: 0};
+                    current.soldQty += order.quantity || 1;
+                    productsSoldByKoc.set(productKey, current);
+                }
+
             } else {
                 failedOrders++;
             }
@@ -252,6 +264,17 @@ export class FinancialsService {
             latestVideoLink = `https://www.tiktok.com/@${topRevenueOrder.koc_username}/video/${topRevenueOrder.video_id}`;
         }
 
+        let totalStockForKoc = 0;
+        let totalSoldQtyForKoc = 0;
+        for (const [sku, sales] of productsSoldByKoc.entries()) {
+            const stockInfo = inventoryData.find(inv => inv.inventory_sku === sku);
+            if (stockInfo) {
+                totalStockForKoc += stockInfo.stock;
+            }
+            totalSoldQtyForKoc += sales.soldQty;
+        }
+        const { days, display } = this.formatDaysOnHand(totalStockForKoc, totalSoldQtyForKoc);
+
         pnlByKoc.set(kocKey, {
             totalGmv,
             nmv,
@@ -265,7 +288,9 @@ export class FinancialsService {
             latestVideoLink,
             realRoas: 0,
             breakEvenRoas: 0,
-            daysOnHand: 0,
+            daysOnHand: days,
+            daysOnHandDisplay: display,
+            stockQuantity: totalStockForKoc,
             healthStatus: 'NEUTRAL',
             aiCommand: '',
         });
@@ -343,7 +368,9 @@ export class FinancialsService {
             failedOrders: pnlData?.failedOrders || 0,
             latestVideoLink: pnlData?.latestVideoLink || '',
             breakEvenRoas: breakEvenRoas,
-            daysOnHand: 0,
+            daysOnHand: pnlData?.daysOnHand ?? 0,
+            daysOnHandDisplay: pnlData?.daysOnHandDisplay ?? '',
+            stockQuantity: pnlData?.stockQuantity ?? 0,
             healthStatus: healthStatus,
             aiCommand: aiCommand
         });
@@ -661,7 +688,7 @@ export class FinancialsService {
         }
     });
 
-    const productMap = new Map<string, Omit<ProductPnlData, 'netProfit' | 'returnRate'>>();
+    const productMap = new Map<string, Omit<ProductPnlData, 'netProfit' | 'returnRate'> & { successQuantity: number }>();
 
     orders.forEach(order => {
       const key = order.product_id || order.seller_sku;
@@ -681,9 +708,12 @@ export class FinancialsService {
           successCount: 0,
           totalCount: 0,
           grossProfit: 0,
+          successQuantity: 0,
           realRoas: 0,
           breakEvenRoas: 0,
           daysOnHand: 0,
+          daysOnHandDisplay: '',
+          stockQuantity: 0,
           healthStatus: 'NEUTRAL',
           aiCommand: ''
         });
@@ -710,6 +740,7 @@ export class FinancialsService {
         item.commission += order.commission || 0;
         item.cogs += orderCogs;
         item.grossProfit += (order.revenue || 0) - orderCogs;
+        item.successQuantity += order.quantity || 1;
       }
     });
 
@@ -727,12 +758,11 @@ export class FinancialsService {
       const stockInfo = inventory.find(inv => inv.inventory_sku === p.sku || this.normalizeName(inv.name) === this.normalizeName(p.productName));
       const stockLevel = stockInfo?.stock ?? -1;
       
-      // Cannot calculate without sales period, so defaulting.
-      const daysOnHand = 0; 
+      const { days, display } = this.formatDaysOnHand(stockLevel, p.successQuantity);
       
       let aiCommand: ProductPnlData['aiCommand'] = '';
       if (stockLevel === 0) aiCommand = 'STOCK_OUT';
-      else if (stockLevel > 0 && stockLevel < 50) aiCommand = 'INVENTORY_ALERT';
+      else if (days > 0 && days < 7) aiCommand = 'INVENTORY_ALERT';
       else if (healthStatus === 'BLEEDING') aiCommand = 'KILL';
       else if (healthStatus === 'HEALTHY') aiCommand = 'SCALE';
       else if (netProfit < 0) aiCommand = 'OPTIMIZE';
@@ -744,7 +774,9 @@ export class FinancialsService {
         returnRate,
         realRoas,
         breakEvenRoas,
-        daysOnHand,
+        daysOnHand: days,
+        daysOnHandDisplay: display,
+        stockQuantity: stockLevel,
         healthStatus,
         aiCommand
       };
@@ -794,5 +826,87 @@ export class FinancialsService {
     if (highGMV && !highProfit) return 'COW';       // 🐮 Bò sữa (Cần tối ưu chi phí)
     if (!highGMV && highProfit) return 'QUESTION';  // ❓ Dấu hỏi (Tiềm năng, cần đẩy Ads)
     return 'DOG';                                   // 🐕 Chó mực (Cắt bỏ)
+  }
+
+  getKocDetails(kocMergeKey: string, adsData: TiktokAd[]): KocDetailItem[] {
+    const orders = this.ordersWithCogsByKoc().get(kocMergeKey) || [];
+    if (orders.length === 0) return [];
+
+    const adsByVideoId = new Map<string, TiktokAd>();
+    adsData.filter(ad => this.normalizeKoc(ad.tiktokAccount) === kocMergeKey)
+           .forEach(ad => {
+             if (ad.videoId) {
+               adsByVideoId.set(ad.videoId, ad);
+             }
+           });
+
+    const detailsByVideo = new Map<string, {
+        nmv: number;
+        returnCount: number;
+        commission: number;
+        productName: string;
+        productId: string;
+    }>();
+
+    const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
+    const refundKeywords = ['hoàn tiền'];
+
+    for (const order of orders) {
+      const videoId = order.videoId || 'no-video';
+      if (!detailsByVideo.has(videoId)) {
+        detailsByVideo.set(videoId, {
+          nmv: 0,
+          returnCount: 0,
+          commission: 0,
+          productName: order.product_name,
+          productId: order.product_id,
+        });
+      }
+
+      const detail = detailsByVideo.get(videoId)!;
+      const status = (order.status || '').toLowerCase();
+      const isFailed = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => status.includes(kw));
+
+      if (!isFailed) {
+          detail.nmv += order.revenue;
+          detail.commission += order.commission;
+      } else {
+          detail.returnCount++;
+      }
+    }
+    
+    return Array.from(detailsByVideo.entries()).map(([videoId, data]) => {
+        const adData = adsByVideoId.get(videoId);
+        const cost = adData?.cost || 0;
+        const profit = data.nmv - cost - data.commission;
+        const roi = cost > 0 ? data.nmv / cost : 0;
+        const cir = data.nmv > 0 ? (cost / data.nmv) * 100 : 0;
+        
+        return {
+            videoId: videoId,
+            videoName: adData?.videoTitle || 'N/A',
+            productName: data.productName,
+            productId: data.productId,
+            nmv: data.nmv,
+            cost: cost,
+            profit: profit,
+            returnCount: data.returnCount,
+            commission: data.commission,
+            roi: roi,
+            cir: cir,
+        };
+    });
+  }
+
+  private formatDaysOnHand(stock: number, soldQty: number, periodDays: number = 30): { days: number, display: string } {
+    if (stock <= 0) return { days: 0, display: 'Hết hàng' };
+    if (soldQty <= 0) return { days: Infinity, display: '> 999 ngày' };
+
+    const avgDailySales = soldQty / periodDays;
+    const days = stock / avgDailySales;
+    
+    if (days === Infinity) return { days, display: '> 999 ngày'};
+    if (days > 365) return { days, display: '> 1 năm' };
+    return { days, display: `${Math.round(days)} ngày` };
   }
 }

@@ -153,9 +153,12 @@ export class ChatbotComponent implements OnInit {
   }
 
   private scrollToBottom(): void {
-    this.chatContainerEl()?.nativeElement.scrollTo({
-        top: this.chatContainerEl()().nativeElement.scrollHeight,
+    const containerEl = this.chatContainerEl();
+    if (containerEl) {
+      containerEl.nativeElement.scrollTo({
+        top: containerEl.nativeElement.scrollHeight,
         behavior: 'smooth'
-    });
+      });
+    }
   }
 }

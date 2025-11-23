@@ -147,72 +147,160 @@
         <thead class="bg-slate-50 text-xs uppercase text-slate-600">
            @if (viewMode() === 'koc') {
             <tr>
-              @for(header of [
-                { key: 'kocName', label: 'KOC' },
-                { key: 'breakEvenRoas', label: '🛡️ BE ROAS' },
-                { key: 'realRoas', label: '🚀 Real ROAS' },
-                { key: 'daysOnHand', label: '📦 Tồn (Ngày)' },
-                { key: 'returnCancelPercent', label: '📉 Hoàn/Hủy' },
-                { key: 'netProfit', label: '💰 Lãi Ròng' },
-                { key: 'aiCommand', label: '🤖 AI Lệnh' },
-                { key: 'actions', label: 'Hành động' }
-              ]; track header.key) {
-                <th (click)="onSort(header.key)" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
-                  <div class="flex items-center">
-                    <span>{{ header.label }}</span>
-                    @if(sortKey() === header.key) {
-                      <span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
-                    }
-                  </div>
-                </th>
-              }
+              <th (click)="onSort('kocName')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>KOC / Kênh</span>
+                  @if(sortKey() === 'kocName') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th class="group relative px-4 py-3 text-left font-semibold cursor-help">
+                <div class="flex items-center">🛡️ ROAS Hòa Vốn</div>
+                <div class="absolute hidden group-hover:block bg-black text-white p-2 rounded text-xs w-48 z-50 shadow-lg">
+                  Mức ROAS tối thiểu phải đạt để không lỗ. <br>
+                  Công thức: (Doanh thu thực / Lãi gộp thực)
+                </div>
+              </th>
+              <th class="group relative px-4 py-3 text-left font-semibold cursor-help">
+                <div class="flex items-center">🚀 ROAS Thực</div>
+                 <div class="absolute hidden group-hover:block bg-black text-white p-2 rounded text-xs w-48 z-50 shadow-lg">
+                  Hiệu quả thực tế của tiền quảng cáo. <br>
+                  Công thức: (Doanh thu thực / Chi phí Ads)
+                </div>
+              </th>
+              <th (click)="onSort('daysOnHand')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>📦 Tồn Kho (Ngày)</span>
+                  @if(sortKey() === 'daysOnHand') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th (click)="onSort('returnCancelPercent')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>📉 Hoàn/Hủy</span>
+                  @if(sortKey() === 'returnCancelPercent') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th (click)="onSort('netProfit')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>💰 Lãi Ròng</span>
+                  @if(sortKey() === 'netProfit') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th class="px-4 py-3 text-left font-semibold">🤖 AI Lệnh</th>
+              <th class="px-4 py-3 text-left font-semibold">Hành động</th>
             </tr>
            } @else {
              <tr>
-              @for(header of [
-                { key: 'productName', label: 'Sản phẩm' },
-                { key: 'breakEvenRoas', label: '🛡️ BE ROAS' },
-                { key: 'realRoas', label: '🚀 Real ROAS' },
-                { key: 'daysOnHand', label: '📦 Tồn (Ngày)' },
-                { key: 'returnRate', label: '📉 Hoàn/Hủy' },
-                { key: 'netProfit', label: '💰 Lãi Ròng' },
-                { key: 'aiCommand', label: '🤖 AI Lệnh' },
-                { key: 'actions', label: 'Hành động' }
-              ]; track header.key) {
-                <th (click)="onSort(header.key)" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
-                  <div class="flex items-center">
-                    <span>{{ header.label }}</span>
-                    @if(sortKey() === header.key) {
-                      <span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
-                    }
-                  </div>
-                </th>
-              }
+              <th (click)="onSort('productName')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>Sản phẩm</span>
+                   @if(sortKey() === 'productName') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th class="group relative px-4 py-3 text-left font-semibold cursor-help">
+                <div class="flex items-center">🛡️ ROAS Hòa Vốn</div>
+                <div class="absolute hidden group-hover:block bg-black text-white p-2 rounded text-xs w-48 z-50 shadow-lg">
+                  Mức ROAS tối thiểu phải đạt để không lỗ. <br>
+                  Công thức: (Doanh thu thực / Lãi gộp thực)
+                </div>
+              </th>
+              <th class="group relative px-4 py-3 text-left font-semibold cursor-help">
+                 <div class="flex items-center">🚀 ROAS Thực</div>
+                 <div class="absolute hidden group-hover:block bg-black text-white p-2 rounded text-xs w-48 z-50 shadow-lg">
+                  Hiệu quả thực tế của tiền quảng cáo. <br>
+                  Công thức: (Doanh thu thực / Chi phí Ads)
+                </div>
+              </th>
+               <th (click)="onSort('daysOnHand')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>📦 Tồn Kho (Ngày)</span>
+                  @if(sortKey() === 'daysOnHand') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th (click)="onSort('returnRate')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>📉 Hoàn/Hủy</span>
+                  @if(sortKey() === 'returnRate') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th (click)="onSort('netProfit')" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                <div class="flex items-center">
+                  <span>💰 Lãi Ròng</span>
+                  @if(sortKey() === 'netProfit') {<span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}
+                </div>
+              </th>
+              <th class="px-4 py-3 text-left font-semibold">🤖 AI Lệnh</th>
+              <th class="px-4 py-3 text-left font-semibold">Hành động</th>
             </tr>
            }
         </thead>
         <tbody class="divide-y divide-gray-200 text-sm">
           @for(item of paginatedData(); track item.kocName || item.productId) {
-            <tr class="hover:bg-slate-50" [class.bg-red-50]="item.netProfit < 0">
-              <td class="px-4 py-3 font-medium text-indigo-600">{{ item.kocName || item.productName }}</td>
-              <td class="px-4 py-3">{{ item.breakEvenRoas === Infinity ? 'N/A' : (item.breakEvenRoas | number:'1.1-1') }}</td>
-              <td class="px-4 py-3 font-semibold" [class.text-red-600]="item.healthStatus === 'BLEEDING'">
-                {{ item.realRoas | number:'1.1-1' }}
-                @if(item.healthStatus === 'BLEEDING') {<span>💀</span>}
-              </td>
-              <td class="px-4 py-3">
-                @if(item.daysOnHand < 7) {<span class="font-bold text-red-500 animate-pulse">🚨</span>}
-                {{ item.daysOnHand === Infinity ? 'Hết hàng' : (item.daysOnHand | number:'1.0-0') }}
-              </td>
-              <td class="px-4 py-3">{{ (item.returnCancelPercent || item.returnRate) | number:'1.1-1' }}%</td>
-              <td class="px-4 py-3 font-bold" [class.text-red-600]="item.netProfit < 0" [class.text-green-600]="item.netProfit >= 0">
-                {{ item.netProfit | number:'1.0-0' }} đ
-              </td>
-              <td class="px-4 py-3 font-semibold text-xs">{{ item.aiCommand }}</td>
-              <td class="px-4 py-3">
-                <button (click)="openWarRoom(item)" class="px-2 py-1 bg-slate-200 text-slate-800 rounded-md text-xs font-semibold hover:bg-slate-300">⚡ Hành Động</button>
-              </td>
-            </tr>
+            <ng-container>
+                <tr class="hover:bg-slate-50" [class.bg-red-50]="item.netProfit < 0">
+                <td (click)="viewMode() === 'koc' ? selectKoc(item) : null" class="px-4 py-3 font-medium text-indigo-600" [class.cursor-pointer]="viewMode() === 'koc'">
+                    {{ item.kocName || item.productName }}
+                    @if(viewMode() === 'koc') {
+                    <span class="text-xs ml-1 text-gray-400">{{ selectedKoc() === item ? '▼' : '▶' }}</span>
+                    }
+                </td>
+                <td class="px-4 py-3">{{ item.breakEvenRoas === Infinity ? 'N/A' : (item.breakEvenRoas | number:'1.1-1') }}</td>
+                <td class="px-4 py-3 font-semibold" [class.text-red-600]="item.healthStatus === 'BLEEDING'">
+                    {{ item.realRoas | number:'1.1-1' }}
+                    @if(item.healthStatus === 'BLEEDING') {<span>💀</span>}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <span [class.text-red-600]="item.daysOnHand < 7 && item.daysOnHand > 0" class="font-bold">
+                        {{ item.daysOnHandDisplay }}
+                    </span>
+                    <div class="text-[10px] text-gray-400">SL: {{ item.stockQuantity | number:'1.0-0' }}</div>
+                </td>
+                <td class="px-4 py-3">{{ (item.returnCancelPercent ?? item.returnRate) | number:'1.1-1' }}%</td>
+                <td class="px-4 py-3 font-bold" [class.text-red-600]="item.netProfit < 0" [class.text-green-600]="item.netProfit >= 0">
+                    {{ item.netProfit | number:'1.0-0' }} đ
+                </td>
+                <td class="px-4 py-3 font-semibold text-xs">{{ item.aiCommand }}</td>
+                <td class="px-4 py-3">
+                    <button (click)="openWarRoom(item)" class="px-2 py-1 bg-slate-200 text-slate-800 rounded-md text-xs font-semibold hover:bg-slate-300">⚡ Hành Động</button>
+                </td>
+                </tr>
+
+                @if (viewMode() === 'koc' && selectedKoc() === item) {
+                <tr class="bg-slate-50">
+                    <td colspan="8" class="p-4 border-l-4 border-indigo-500">
+                    <h4 class="text-sm font-semibold mb-2 text-gray-700">🔍 Chi tiết Video của {{ item.kocName }}</h4>
+                    <table class="w-full bg-white border rounded-lg">
+                        <thead>
+                        <tr class="text-xs bg-indigo-50">
+                            <th class="p-2 text-left">Video ID / Link</th>
+                            <th class="p-2 text-left">Sản Phẩm</th>
+                            <th class="p-2 text-right">Doanh Thu (NMV)</th>
+                            <th class="p-2 text-right">Chi Phí Ads</th>
+                            <th class="p-2 text-right">Lợi Nhuận</th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                        @for (video of sortedKocDetails(); track video.videoId) {
+                            <tr>
+                            <td class="p-2 text-xs">
+                                <a [href]="getTikTokVideoLink(item.kocName, video.videoId)" target="_blank" class="text-blue-600 hover:underline inline-flex items-center">
+                                <span>{{ video.videoId || 'Không có ID' }}</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                </a>
+                            </td>
+                            <td class="p-2 text-xs">{{ video.productName }}</td>
+                            <td class="p-2 text-right text-xs">{{ video.nmv | number }}</td>
+                            <td class="p-2 text-right text-xs">{{ video.cost | number }}</td>
+                            <td class="p-2 text-right text-xs font-bold" [class.text-red-500]="video.profit < 0">{{ video.profit | number }}</td>
+                            </tr>
+                        } @empty {
+                            <tr><td colspan="5" class="p-4 text-center text-xs text-gray-500">Không có dữ liệu chi tiết.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                    </td>
+                </tr>
+                }
+            </ng-container>
           } @empty {
             <tr><td colspan="8" class="text-center py-10 text-gray-500">Không có dữ liệu để hiển thị.</td></tr>
           }
