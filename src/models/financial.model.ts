@@ -21,27 +21,45 @@ export interface InventoryData {
   name: string;
 }
 
+export interface CostStructure {
+  platformFeePercent: number; // Phí sàn (VD: 5% doanh thu)
+  operatingFee: {
+    type: 'fixed' | 'percent';
+    value: number; // VD: 5000đ/đơn hoặc 2% doanh thu
+  };
+  otherCosts: Array<{
+    id: string;
+    name: string; // VD: "Phí đóng gói", "Marketing ngoài"
+    type: 'fixed' | 'percent';
+    value: number;
+  }>;
+}
+
 export interface KocPnlData {
   kocName: string;
   normalizedKocName: string;
   // From Ads data
   adsCost: number;
   adsGmv: number;
+  realRoas: number;
   // From Order data
   totalGmv: number; // Gross Merchandise Value from all orders (incl. failed)
   nmv: number; // Net Merchandise Value
   totalCommission: number;
   totalCogs: number;
+  grossProfit: number;
   // Calculated
   netProfit: number;
   returnCancelPercent: number; // Percentage
   totalOrders: number;
+  successOrders: number;
   failedOrders: number;
   latestVideoLink: string;
-  // FIX: Added missing properties for UI suggestions. These were being assigned in
-  // financials.service.ts but were missing from the type definition, causing an error.
-  suggestion: string;
-  suggestionColor: string;
+  // Strategic Metrics
+  breakEvenRoas: number;
+  daysOnHand: number;
+  healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
+  aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | '';
 }
 
 export interface EnrichedOrderData {
@@ -81,6 +99,13 @@ export interface ProductPnlData {
   returnCount: number;
   successCount: number;
   totalCount: number;
+  grossProfit: number;
   netProfit: number;
   returnRate: number;
+  // Strategic Metrics
+  breakEvenRoas: number;
+  realRoas: number;
+  daysOnHand: number;
+  healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
+  aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | 'STOCK_OUT' | '';
 }

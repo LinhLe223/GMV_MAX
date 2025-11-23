@@ -5,10 +5,13 @@
   </div>
   
   <!-- Tabs -->
-  <div class="border-b border-gray-200">
+  <div class.ts="border-b border-gray-200">
     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
       <button (click)="activeTab.set('members')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'members' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
         Quản lý thành viên
+      </button>
+       <button (click)="activeTab.set('costs')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'costs' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        Chi phí & Vận hành
       </button>
        <button (click)="activeTab.set('config')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'config' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
         📊 Cấu hình & Chi phí
@@ -103,6 +106,72 @@
             </form>
           </div>
       </div>
+    }
+    @case ('costs') {
+      @if(costConfig(); as config) {
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Cấu Hình Chi Phí & Vận Hành</h3>
+          <form (submit)="$event.preventDefault(); saveCostConfig()" class="mt-6 space-y-6">
+            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              <div class="sm:col-span-3">
+                <label for="platform-fee" class="block text-sm font-medium text-gray-700">Phí sàn</label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                  <input type="number" id="platform-fee" [value]="config.platformFeePercent" (input)="updateCostValue('platformFeePercent', $event.target.valueAsNumber)" class="block w-full rounded-md border-gray-300 pl-3 pr-12 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="0">
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-500 sm:text-sm">%</span></div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-3">
+                <label class="block text-sm font-medium text-gray-700">Phí vận hành (mỗi đơn thành công)</label>
+                <div class="mt-1 flex rounded-md shadow-sm">
+                  <select [value]="config.operatingFee.type" (change)="updateCostType('operatingFee', $event.target.value)" class="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500">
+                    <option value="fixed">VNĐ</option>
+                    <option value="percent">%</option>
+                  </select>
+                  <input type="number" [value]="config.operatingFee.value" (input)="updateCostValue('operatingFee', $event.target.valueAsNumber)" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200">
+              <h4 class="text-md font-medium text-gray-800">Các loại chi phí khác</h4>
+              <div class="mt-4 space-y-4">
+                @for(cost of config.otherCosts; track cost.id) {
+                  <div class="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-12 items-end p-3 bg-slate-50 rounded-lg border">
+                     <div class="sm:col-span-5">
+                        <label [for]="'cost-name-' + cost.id" class="block text-xs font-medium text-gray-600">Tên chi phí</label>
+                        <input [id]="'cost-name-' + cost.id" type="text" [value]="cost.name" (input)="updateOtherCost(cost.id, 'name', $event.target.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                     </div>
+                     <div class="sm:col-span-5">
+                       <label [for]="'cost-value-' + cost.id" class="block text-xs font-medium text-gray-600">Giá trị</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                          <select [value]="cost.type" (change)="updateOtherCost(cost.id, 'type', $event.target.value)" class="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500">
+                            <option value="fixed">VNĐ</option>
+                            <option value="percent">%</option>
+                          </select>
+                          <input type="number" [value]="cost.value" (input)="updateOtherCost(cost.id, 'value', $event.target.valueAsNumber)" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 sm:text-sm">
+                        </div>
+                     </div>
+                     <div class="sm:col-span-2">
+                        <button type="button" (click)="removeOtherCost(cost.id)" class="inline-flex items-center justify-center w-full rounded-md border border-transparent bg-red-100 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-200">Xóa</button>
+                     </div>
+                  </div>
+                }
+                <button type="button" (click)="addOtherCost()" class="inline-flex items-center rounded-md border border-dashed border-gray-400 bg-transparent px-4 py-2 text-sm font-medium text-gray-700 hover:bg-slate-100">
+                  + Thêm loại phí
+                </button>
+              </div>
+            </div>
+            
+            <div class="pt-5">
+              <div class="flex justify-end">
+                <button type="submit" class="ml-3 inline-flex justify-center rounded-full border border-transparent bg-indigo-600 py-2 px-6 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">Lưu Cấu hình</button>
+              </div>
+              @if(costConfigSaved()) { <p class="mt-2 text-sm text-center text-green-600">Đã lưu cấu hình chi phí thành công!</p> }
+            </div>
+          </form>
+        </div>
+      }
     }
     @case ('config') {
       <div class="space-y-8">

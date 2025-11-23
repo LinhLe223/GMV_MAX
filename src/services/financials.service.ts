@@ -1,10 +1,13 @@
 
 
+
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData } from '../models/financial.model';
 import { DataService, KocReportStat } from './data.service';
 import { TiktokAd } from '../models/tiktok-ad.model';
+import { EnterpriseService } from './enterprise.service';
 
 export interface DebugInfo {
   orderFileColumns?: string[];
@@ -29,6 +32,7 @@ const fileTypeKeywords = {
 })
 export class FinancialsService {
   private dataService = inject(DataService);
+  private enterpriseService = inject(EnterpriseService);
 
   orderData = signal<OrderData[]>([]);
   inventoryData = signal<InventoryData[]>([]);
@@ -185,7 +189,7 @@ export class FinancialsService {
         ordersByKoc.get(kocName)!.push(order);
     });
 
-    const pnlByKoc = new Map<string, Omit<KocPnlData, 'kocName' | 'normalizedKocName' | 'adsCost' | 'adsGmv' | 'netProfit' | 'suggestion' | 'suggestionColor'>>();
+    const pnlByKoc = new Map<string, Omit<KocPnlData, 'kocName' | 'normalizedKocName' | 'adsCost' | 'adsGmv' | 'netProfit'>>();
     const enrichedOrdersByKoc = new Map<string, EnrichedOrderData[]>();
     
     const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
@@ -195,7 +199,7 @@ export class FinancialsService {
     let cogsFoundCount = 0;
 
     for (const [kocKey, orders] of ordersByKoc.entries()) {
-        let totalGmv = 0, nmv = 0, totalCommission = 0, totalCogs = 0, failedOrders = 0;
+        let totalGmv = 0, nmv = 0, totalCommission = 0, totalCogs = 0, failedOrders = 0, grossProfit = 0;
         let topRevenueOrder: OrderData | null = null;
         const enrichedOrders: EnrichedOrderData[] = [];
 
@@ -213,6 +217,7 @@ export class FinancialsService {
                 nmv += order.revenue;
                 totalCommission += order.commission;
                 totalCogs += cogsForItem;
+                grossProfit += order.revenue - cogsForItem;
                 
                 if (cogsPerUnit > 0) {
                     cogsFoundCount++;
@@ -248,10 +253,21 @@ export class FinancialsService {
         }
 
         pnlByKoc.set(kocKey, {
-            totalGmv, nmv, totalCommission, totalCogs, 
-            totalOrders: orders.length, failedOrders,
+            totalGmv,
+            nmv,
+            totalCommission,
+            totalCogs,
+            grossProfit,
             returnCancelPercent: orders.length > 0 ? (failedOrders / orders.length) * 100 : 0,
-            latestVideoLink: latestVideoLink,
+            totalOrders: orders.length,
+            successOrders: orders.length - failedOrders,
+            failedOrders,
+            latestVideoLink,
+            realRoas: 0,
+            breakEvenRoas: 0,
+            daysOnHand: 0,
+            healthStatus: 'NEUTRAL',
+            aiCommand: '',
         });
     }
     
@@ -263,6 +279,8 @@ export class FinancialsService {
     const localUnmappedKocs: KocReportStat[] = [];
     const totalAdsGmv = this.dataService.summaryStats().totalGmv;
     const allKocKeys: Set<string> = new Set([...adsKocMap.keys(), ...pnlByKoc.keys()]);
+    
+    const costConfig = this.enterpriseService.getCostStructure();
 
     for (const normalizedKoc of allKocKeys) {
         const adsData = adsKocMap.get(normalizedKoc);
@@ -274,38 +292,60 @@ export class FinancialsService {
 
         const originalKocName = adsData?.name || ordersByKoc.get(normalizedKoc)?.[0]?.koc_username || normalizedKoc;
         const adsCost = adsData?.totalCost || 0;
-        const netProfit = (pnlData?.nmv || 0) - (pnlData?.totalCogs || 0) - (pnlData?.totalCommission || 0) - adsCost;
+        const nmv = pnlData?.nmv || 0;
+        const totalCogs = pnlData?.totalCogs || 0;
+        const totalCommission = pnlData?.totalCommission || 0;
+        const successOrders = pnlData?.successOrders || 0;
+        
+        const platformFee = (nmv * costConfig.platformFeePercent) / 100;
+        const operatingFee = costConfig.operatingFee.type === 'fixed'
+            ? costConfig.operatingFee.value * successOrders
+            : nmv * (costConfig.operatingFee.value / 100);
+        const otherCostsTotal = costConfig.otherCosts.reduce((acc, cost) => {
+            const costValue = cost.type === 'fixed'
+                ? cost.value * successOrders
+                : nmv * (cost.value / 100);
+            return acc + costValue;
+        }, 0);
+        const totalDynamicFees = platformFee + operatingFee + otherCostsTotal;
 
-        let suggestion = '';
-        let suggestionColor = '';
+        const netProfit = nmv - totalCogs - totalCommission - adsCost - totalDynamicFees;
+        const realRoas = adsCost > 0 ? nmv / adsCost : 0;
+        
+        const contributionMargin = nmv - totalCogs - totalCommission - totalDynamicFees;
+        const breakEvenRoas = contributionMargin > 0 ? nmv / contributionMargin : Infinity;
+        
+        let healthStatus: KocPnlData['healthStatus'] = 'NEUTRAL';
+        if (netProfit < -500000 && adsCost > 1000000) healthStatus = 'BLEEDING';
+        else if (netProfit > 500000) healthStatus = 'HEALTHY';
 
-        if (netProfit > 1000000 && adsCost > 1000000) {
-            suggestion = 'SCALE';
-            suggestionColor = 'bg-green-100 text-green-800';
-        } else if (netProfit < 0 && adsCost > 2000000) {
-            suggestion = 'CUT';
-            suggestionColor = 'bg-red-100 text-red-800';
-        } else if ((pnlData?.returnCancelPercent || 0) > 30) {
-            suggestion = 'ALERT';
-            suggestionColor = 'bg-yellow-100 text-yellow-800';
-        }
+        let aiCommand: KocPnlData['aiCommand'] = '';
+        if (healthStatus === 'BLEEDING') aiCommand = 'KILL';
+        else if (healthStatus === 'HEALTHY' && realRoas > breakEvenRoas && realRoas > 1) aiCommand = 'SCALE';
+        else if (netProfit > 0) aiCommand = 'MAINTAIN';
+        else aiCommand = 'OPTIMIZE';
 
         finalPnlData.push({
             kocName: originalKocName,
             normalizedKocName: normalizedKoc,
             adsCost: adsCost,
             adsGmv: adsData?.totalGmv || 0,
+            realRoas: realRoas,
             totalGmv: pnlData?.totalGmv || 0,
-            nmv: pnlData?.nmv || 0,
-            totalCommission: pnlData?.totalCommission || 0,
-            totalCogs: pnlData?.totalCogs || 0,
-            netProfit,
+            nmv: nmv,
+            totalCommission: totalCommission,
+            totalCogs: totalCogs,
+            grossProfit: pnlData?.grossProfit || 0,
+            netProfit: netProfit,
             returnCancelPercent: pnlData?.returnCancelPercent || 0,
             totalOrders: pnlData?.totalOrders || 0,
+            successOrders: pnlData?.successOrders || 0,
             failedOrders: pnlData?.failedOrders || 0,
             latestVideoLink: pnlData?.latestVideoLink || '',
-            suggestion,
-            suggestionColor,
+            breakEvenRoas: breakEvenRoas,
+            daysOnHand: 0,
+            healthStatus: healthStatus,
+            aiCommand: aiCommand
         });
     }
 
@@ -639,7 +679,13 @@ export class FinancialsService {
           adsCost: 0, // Hardcoded to 0 as mapping is complex
           returnCount: 0,
           successCount: 0,
-          totalCount: 0
+          totalCount: 0,
+          grossProfit: 0,
+          realRoas: 0,
+          breakEvenRoas: 0,
+          daysOnHand: 0,
+          healthStatus: 'NEUTRAL',
+          aiCommand: ''
         });
       }
 
@@ -652,6 +698,9 @@ export class FinancialsService {
       const status = (order.status || '').toLowerCase();
       const returnStatus = (order.return_status || '').toLowerCase();
       const isReturn = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => returnStatus.includes(kw));
+      
+      const skuCost = this.findCogs(order, inventorySkuMap, inventoryNameMap);
+      const orderCogs = (order.quantity || 1) * skuCost;
 
       if (isReturn) {
         item.returnCount++;
@@ -659,19 +708,45 @@ export class FinancialsService {
         item.successCount++;
         item.nmv += order.revenue || 0;
         item.commission += order.commission || 0;
-        
-        const skuCost = this.findCogs(order, inventorySkuMap, inventoryNameMap);
-        item.cogs += (order.quantity || 1) * skuCost;
+        item.cogs += orderCogs;
+        item.grossProfit += (order.revenue || 0) - orderCogs;
       }
     });
 
     return Array.from(productMap.values()).map(p => {
-      const netProfit = p.nmv - p.cogs - p.commission - p.adsCost;
+      const netProfit = p.grossProfit - p.commission - p.adsCost;
       const returnRate = p.totalCount > 0 ? (p.returnCount / p.totalCount) * 100 : 0;
+      const realRoas = p.adsCost > 0 ? p.nmv / p.adsCost : 0;
+      const grossProfitAfterCommission = p.grossProfit - p.commission;
+      const breakEvenRoas = grossProfitAfterCommission > 0 ? p.nmv / grossProfitAfterCommission : 0;
+
+      let healthStatus: ProductPnlData['healthStatus'] = 'NEUTRAL';
+      if (netProfit < 0 && p.adsCost > 1000000) healthStatus = 'BLEEDING';
+      else if (netProfit > 1000000) healthStatus = 'HEALTHY';
+      
+      const stockInfo = inventory.find(inv => inv.inventory_sku === p.sku || this.normalizeName(inv.name) === this.normalizeName(p.productName));
+      const stockLevel = stockInfo?.stock ?? -1;
+      
+      // Cannot calculate without sales period, so defaulting.
+      const daysOnHand = 0; 
+      
+      let aiCommand: ProductPnlData['aiCommand'] = '';
+      if (stockLevel === 0) aiCommand = 'STOCK_OUT';
+      else if (stockLevel > 0 && stockLevel < 50) aiCommand = 'INVENTORY_ALERT';
+      else if (healthStatus === 'BLEEDING') aiCommand = 'KILL';
+      else if (healthStatus === 'HEALTHY') aiCommand = 'SCALE';
+      else if (netProfit < 0) aiCommand = 'OPTIMIZE';
+      else aiCommand = 'MAINTAIN';
+
       return {
         ...p,
         netProfit,
-        returnRate
+        returnRate,
+        realRoas,
+        breakEvenRoas,
+        daysOnHand,
+        healthStatus,
+        aiCommand
       };
     });
   }

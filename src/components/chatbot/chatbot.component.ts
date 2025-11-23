@@ -40,6 +40,8 @@ export class ChatbotComponent implements OnInit {
 
     // Financial data is loaded, provide richer context
     const pnlSummary = this.financialsService.dashboardMetrics();
+    const costConfig = this.enterpriseService.getCostStructure();
+    
     const topKocs = this.financialsService.kocPnlData()
       .sort((a, b) => b.netProfit - a.netProfit)
       .slice(0, 5)
@@ -50,10 +52,25 @@ export class ChatbotComponent implements OnInit {
           nmv: k.nmv
       }));
 
+    const bleedingKocs = this.financialsService.kocPnlData()
+        .filter(k => k.healthStatus === 'BLEEDING')
+        .slice(0, 3)
+        .map(k => `KOC ${k.kocName} đang lỗ (Real ROAS: ${k.realRoas.toFixed(2)}, BE ROAS: ${k.breakEvenRoas.toFixed(2)})`);
+
+    const lowStockProducts = this.financialsService.productPnlData()
+        .filter(p => p.daysOnHand < 7 && p.daysOnHand > 0)
+        .slice(0, 3)
+        .map(p => `Sản phẩm ${p.productName} sắp hết hàng (còn ~${p.daysOnHand.toFixed(0)} ngày)`);
+
     const context = {
         "Ghi chú": "Đã có đủ dữ liệu Ads, Đơn hàng và Kho (GOD MODE). Phân tích sẽ tập trung vào Lợi nhuận ròng.",
+        "Cấu hình Chi phí hiện tại": `Phí sàn ${costConfig.platformFeePercent}%, Phí vận hành ${costConfig.operatingFee.value}${costConfig.operatingFee.type === 'fixed' ? 'đ/đơn' : '%'}`,
         "Tóm tắt P&L Tổng quan": pnlSummary,
-        "Top 5 KOC theo Lợi nhuận ròng": topKocs
+        "Top 5 KOC theo Lợi nhuận ròng": topKocs,
+        "Cảnh báo Rủi ro": {
+            "KOC đang 'chảy máu'": bleedingKocs.length > 0 ? bleedingKocs.join('; ') : "Không có KOC nào đang lỗ nặng.",
+            "Tồn kho thấp": lowStockProducts.length > 0 ? lowStockProducts.join('; ') : "Tồn kho an toàn."
+        }
     };
 
     return `${enterprisePrompt}\n\n[DỮ LIỆU TÀI CHÍNH VÀ P&L TÓM TẮT]\n${JSON.stringify(context, null, 2)}`;

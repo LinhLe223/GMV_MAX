@@ -79,6 +79,56 @@ export class GodModeComponent {
   aiResult = signal<string | null>(null);
   aiError = signal<string | null>(null);
 
+  financialHealthBarData = computed(() => {
+    const summaryData = this.summary();
+    const costConfig = this.enterpriseService.getCostStructure();
+    
+    if (!summaryData || summaryData.totalNMV <= 0) {
+      return null;
+    }
+
+    const totalNmv = summaryData.totalNMV;
+    const totalCogs = summaryData.totalCOGS;
+    const totalAdsCost = summaryData.totalAdsCost;
+    const totalCommission = summaryData.totalCommission;
+
+    const totalSuccessOrders = this.kocData().reduce((acc, koc) => acc + koc.successOrders, 0);
+
+    const platformFee = (totalNmv * costConfig.platformFeePercent) / 100;
+        
+    const operatingFee = costConfig.operatingFee.type === 'fixed'
+        ? costConfig.operatingFee.value * totalSuccessOrders
+        : totalNmv * (costConfig.operatingFee.value / 100);
+    
+    const otherCostsTotal = costConfig.otherCosts.reduce((acc, cost) => {
+        const costValue = cost.type === 'fixed'
+            ? cost.value * totalSuccessOrders
+            : totalNmv * (cost.value / 100);
+        return acc + costValue;
+    }, 0);
+    
+    const totalFees = totalCommission + platformFee + operatingFee + otherCostsTotal;
+    const totalNetProfit = summaryData.totalNetProfit;
+
+    const cogsPercent = (totalCogs / totalNmv) * 100;
+    const adsPercent = (totalAdsCost / totalNmv) * 100;
+    const feesPercent = (totalFees / totalNmv) * 100;
+    const netProfitPercent = (totalNetProfit / totalNmv) * 100;
+
+    return {
+      totalNmv,
+      cogsPercent,
+      adsPercent,
+      feesPercent,
+      netProfitPercent,
+    };
+  });
+
+  // --- War Room State ---
+  isWarRoomOpen = signal(false);
+  warRoomItem = signal<KocPnlData | ProductPnlData | null>(null);
+  warRoomAction = signal('');
+  warRoomNotes = signal('');
 
   sortedData = computed(() => {
     let data: (KocPnlData | ProductPnlData)[] = this.viewMode() === 'koc' ? this.enrichedKocData() : this.productData();
@@ -137,7 +187,6 @@ export class GodModeComponent {
     if (orders.length === 0 || !koc) return [];
 
     const kocAds = this.dataService.kocReportStats().find(k => k.name.toLowerCase().trim() === koc.kocName.toLowerCase().trim());
-    // FIX: Explicitly type the Map to help TypeScript infer the correct type for `adData`
     const adsByVideoId = new Map<string, TiktokAd>(kocAds?.videos.map(v => [v.videoId, v]) || []);
 
     const detailsByVideo = new Map<string, {
@@ -318,5 +367,36 @@ export class GodModeComponent {
     const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
     const refundKeywords = ['hoàn tiền'];
     return failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => status.includes(kw));
+  }
+
+  openWarRoom(item: KocPnlData | ProductPnlData) {
+    this.warRoomItem.set(item);
+    this.isWarRoomOpen.set(true);
+  }
+
+  closeWarRoom() {
+    this.isWarRoomOpen.set(false);
+    this.warRoomItem.set(null);
+    this.warRoomAction.set('');
+    this.warRoomNotes.set('');
+  }
+
+  saveWarRoomAction() {
+    const item = this.warRoomItem();
+    const action = this.warRoomAction();
+    const notes = this.warRoomNotes();
+    if (!item || !action) return;
+
+    this.enterpriseService.logActivity({
+      action_type: 'war_room_action',
+      input_data: JSON.stringify({
+        target: (item as KocPnlData).kocName || (item as ProductPnlData).productName,
+        action: action,
+        notes: notes
+      }),
+      ai_response: 'Action logged manually by user.'
+    });
+
+    this.closeWarRoom();
   }
 }

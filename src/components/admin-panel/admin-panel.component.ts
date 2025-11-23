@@ -10,6 +10,7 @@ import { EnterpriseService, AiModeConfig } from '../../services/enterprise.servi
 import { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { CostStructure } from '../../models/financial.model';
 
 @Component({
   selector: 'app-admin-panel',
@@ -25,7 +26,7 @@ export class AdminPanelComponent implements OnInit {
   superAdminEmail = 'letuanlinh223@gmail.com';
 
   // Component state
-  activeTab = signal<'members' | 'config' | 'prompts' | 'knowledge' | 'trials'>('members');
+  activeTab = signal<'members' | 'costs' | 'config' | 'prompts' | 'knowledge' | 'trials'>('members');
 
   // User list state
   allUsers = computed(() => this.authService.getUsers());
@@ -76,6 +77,11 @@ export class AdminPanelComponent implements OnInit {
   // --- NEW: AI Modes Config State ---
   aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig> | null>(null);
   aiModesConfigSaved = signal(false);
+  
+  // --- NEW: Cost Structure State ---
+  costConfig = signal<CostStructure | null>(null);
+  costConfigSaved = signal(false);
+
 
   // Helper to iterate over object keys in the template
   objectKeys = Object.keys as <T extends object>(obj: T) => Array<keyof T>;
@@ -98,6 +104,8 @@ export class AdminPanelComponent implements OnInit {
     this.tokenUsageLogs.set(this.enterpriseService.getTokenUsageLogs());
 
     this.aiModesConfig.set(this.enterpriseService.getAiModesConfig());
+
+    this.costConfig.set(this.enterpriseService.getCostStructure());
   }
 
   // --- Cost Dashboard Computations ---
@@ -181,6 +189,58 @@ export class AdminPanelComponent implements OnInit {
     this.resetPasswordSuccess.set(`Đã cập nhật mật khẩu thành công cho ${username}.`);
     this.resetPasswordNew.set('');
     setTimeout(() => this.resetPasswordSuccess.set(null), 4000);
+  }
+
+  // --- Cost Structure Methods ---
+  updateCostValue(field: 'platformFeePercent' | 'operatingFee', value: number) {
+    this.costConfig.update(config => {
+      if (!config) return null;
+      if (field === 'platformFeePercent') {
+        return { ...config, platformFeePercent: value };
+      }
+      return { ...config, operatingFee: { ...config.operatingFee, value } };
+    });
+  }
+
+  updateCostType(field: 'operatingFee', type: 'fixed' | 'percent') {
+    this.costConfig.update(config => {
+      if (!config) return null;
+      return { ...config, operatingFee: { ...config.operatingFee, type } };
+    });
+  }
+  
+  addOtherCost() {
+    this.costConfig.update(config => {
+      if (!config) return null;
+      const newCost = { id: Date.now().toString(), name: '', type: 'fixed' as 'fixed' | 'percent', value: 0 };
+      return { ...config, otherCosts: [...config.otherCosts, newCost] };
+    });
+  }
+  
+  removeOtherCost(id: string) {
+    this.costConfig.update(config => {
+      if (!config) return null;
+      return { ...config, otherCosts: config.otherCosts.filter(c => c.id !== id) };
+    });
+  }
+
+  updateOtherCost(id: string, field: 'name' | 'type' | 'value', value: string | number) {
+    this.costConfig.update(config => {
+      if (!config) return null;
+      return {
+        ...config,
+        otherCosts: config.otherCosts.map(c => c.id === id ? { ...c, [field]: value } : c)
+      };
+    });
+  }
+  
+  saveCostConfig() {
+    const config = this.costConfig();
+    if(config) {
+      this.enterpriseService.updateCostStructure(config);
+      this.costConfigSaved.set(true);
+      setTimeout(() => this.costConfigSaved.set(false), 3000);
+    }
   }
 
   // --- Settings Methods ---

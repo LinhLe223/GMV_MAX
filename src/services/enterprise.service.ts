@@ -6,6 +6,7 @@ import { Injectable, signal, effect } from '@angular/core';
 import { SystemPrompt, KnowledgeBaseItem, ActivityLog, CampaignPlan, SystemConfig, TokenUsageLog } from '../models/user.model';
 import { AuthService } from './auth.service';
 import { inject } from '@angular/core';
+import { CostStructure } from '../models/financial.model';
 
 const PROMPTS_KEY = 'enterprise_prompts';
 const KNOWLEDGE_KEY = 'enterprise_knowledge';
@@ -15,6 +16,7 @@ const SYSTEM_CONFIG_KEY = 'enterprise_system_config';
 const TOKEN_LOG_KEY = 'enterprise_token_usage_logs';
 const AI_MODES_CONFIG_KEY = 'enterprise_ai_modes_config';
 const CUSTOM_MODELS_KEY = 'enterprise_custom_models';
+const COST_CONFIG_KEY = 'app_cost_config';
 
 export interface AiModeConfig { model: string; prompt: string; }
 
@@ -212,6 +214,12 @@ const DEFAULT_AI_MODES_CONFIG: Record<'fast' | 'standard' | 'deep', AiModeConfig
   deep: { model: 'gemini-2.5-pro', prompt: 'Bạn là chuyên gia phân tích tài chính. Dựa vào dữ liệu P&L, hãy phân tích chuyên sâu về sức khỏe tài chính của chiến dịch. Đưa ra dự báo về dòng tiền, điểm hòa vốn, và các rủi ro tiềm ẩn. Đề xuất một chiến lược phân bổ ngân sách chi tiết để tối đa hóa Lợi Nhuận Ròng trong 30 ngày tới.' }
 };
 
+const DEFAULT_COST_STRUCTURE: CostStructure = {
+  platformFeePercent: 0,
+  operatingFee: { type: 'fixed', value: 0 },
+  otherCosts: []
+};
+
 
 const PRICING: Record<string, { input: number; output: number }> = {
     "gemini-1.5-flash": { "input": 0.075 / 1000000, "output": 0.3 / 1000000 },
@@ -235,6 +243,7 @@ export class EnterpriseService {
   private tokenUsageLogs = signal<TokenUsageLog[]>([]);
   private aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig>>(DEFAULT_AI_MODES_CONFIG);
   private customModels = signal<string[]>([]);
+  private costStructure = signal<CostStructure>(DEFAULT_COST_STRUCTURE);
   
   // State for persisting AI advisor plan across views
   activeAdvisorPlan = signal<any | null>(null);
@@ -249,6 +258,7 @@ export class EnterpriseService {
     effect(() => this.saveToLocalStorage(TOKEN_LOG_KEY, this.tokenUsageLogs()));
     effect(() => this.saveToLocalStorage(AI_MODES_CONFIG_KEY, this.aiModesConfig()));
     effect(() => this.saveToLocalStorage(CUSTOM_MODELS_KEY, this.customModels()));
+    effect(() => this.saveToLocalStorage(COST_CONFIG_KEY, this.costStructure()));
   }
 
   private saveToLocalStorage(key: string, data: any): void {
@@ -309,6 +319,14 @@ export class EnterpriseService {
     // Custom Models
     const customModelsJson = localStorage.getItem(CUSTOM_MODELS_KEY);
     this.customModels.set(customModelsJson ? JSON.parse(customModelsJson) : []);
+
+    // Cost Structure
+    const costConfigJson = localStorage.getItem(COST_CONFIG_KEY);
+    if (costConfigJson) {
+      this.costStructure.set(JSON.parse(costConfigJson));
+    } else {
+      this.costStructure.set(DEFAULT_COST_STRUCTURE);
+    }
   }
 
   private truncate(str: string | undefined | null, maxLength: number): string {
@@ -443,5 +461,13 @@ export class EnterpriseService {
     if (modelId && !this.customModels().includes(modelId)) {
         this.customModels.update(models => [...models, modelId]);
     }
+  }
+
+  // --- Cost Structure ---
+  getCostStructure(): CostStructure {
+    return this.costStructure();
+  }
+  updateCostStructure(newConfig: CostStructure) {
+    this.costStructure.set(newConfig);
   }
 }
