@@ -1,5 +1,7 @@
 
 
+
+
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -57,20 +59,19 @@ export class AdminPanelComponent implements OnInit {
   systemConfigs = signal<SystemConfig[]>([]);
   tokenUsageLogs = signal<TokenUsageLog[]>([]);
   configSaved = signal(false);
-  availableModels = [
+  
+  private defaultModels = [
       "gemini-2.5-flash",
       "gemini-2.5-pro",
   ];
-  useCustomModel = signal<Record<SystemConfig['config_key'], boolean>>({
-    advisor_model: false,
-    chat_model: false,
-    analysis_model: false,
+
+  availableModels = computed(() => {
+    const custom = this.enterpriseService.getCustomModels();
+    // Use a Set to ensure uniqueness
+    return [...new Set([...this.defaultModels, ...custom])];
   });
-  customModelValues = signal<Record<SystemConfig['config_key'], string>>({
-    advisor_model: '',
-    chat_model: '',
-    analysis_model: '',
-  });
+
+  newModelInput = signal('');
 
   // --- NEW: AI Modes Config State ---
   aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig> | null>(null);
@@ -93,25 +94,10 @@ export class AdminPanelComponent implements OnInit {
     
     const configs = this.enterpriseService.getSystemConfigs();
     this.systemConfigs.set(configs);
-    this.initializeCustomModelUI(configs);
 
     this.tokenUsageLogs.set(this.enterpriseService.getTokenUsageLogs());
 
     this.aiModesConfig.set(this.enterpriseService.getAiModesConfig());
-  }
-
-  private initializeCustomModelUI(configs: SystemConfig[]): void {
-      const useCustom: Record<SystemConfig['config_key'], boolean> = { advisor_model: false, chat_model: false, analysis_model: false };
-      const customValues: Record<SystemConfig['config_key'], string> = { advisor_model: '', chat_model: '', analysis_model: '' };
-      
-      configs.forEach(config => {
-          if (!this.availableModels.includes(config.model_id)) {
-              useCustom[config.config_key] = true;
-              customValues[config.config_key] = config.model_id;
-          }
-      });
-      this.useCustomModel.set(useCustom);
-      this.customModelValues.set(customValues);
   }
 
   // --- Cost Dashboard Computations ---
@@ -198,28 +184,16 @@ export class AdminPanelComponent implements OnInit {
   }
 
   // --- Settings Methods ---
-  toggleCustomModel(key: SystemConfig['config_key']) {
-      this.useCustomModel.update(current => {
-          const isNowCustom = !current[key];
-          // If we are switching FROM custom TO standard
-          if (!isNowCustom) {
-              const modelToSet = this.availableModels[0]; // Set to a safe default
-              this.enterpriseService.updateSystemConfig(key, modelToSet);
-              this.systemConfigs.set(this.enterpriseService.getSystemConfigs());
-          }
-          return {...current, [key]: isNowCustom};
-      });
+  addNewModel() {
+    const newModel = this.newModelInput().trim();
+    if (newModel && !this.availableModels().includes(newModel)) {
+      this.enterpriseService.addCustomModel(newModel);
+      this.newModelInput.set('');
+    }
   }
   
   updateStandardModelSelection(key: SystemConfig['config_key'], event: Event) {
     const model_id = (event.target as HTMLSelectElement).value;
-    this.enterpriseService.updateSystemConfig(key, model_id);
-    this.systemConfigs.set(this.enterpriseService.getSystemConfigs());
-  }
-
-  updateCustomModelValue(key: SystemConfig['config_key'], event: Event) {
-    const model_id = (event.target as HTMLInputElement).value;
-    this.customModelValues.update(v => ({...v, [key]: model_id}));
     this.enterpriseService.updateSystemConfig(key, model_id);
     this.systemConfigs.set(this.enterpriseService.getSystemConfigs());
   }

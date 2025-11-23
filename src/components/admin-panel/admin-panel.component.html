@@ -150,21 +150,30 @@
                           @let key = config.config_key;
                           <div>
                               <label [for]="key" class="block text-sm font-medium text-gray-700">{{ config.description }}</label>
-                              <div class="mt-2 space-y-2">
-                                @if (!useCustomModel()[key]) {
-                                  <select [id]="key" [value]="config.model_id" (change)="updateStandardModelSelection(key, $event)" class="block w-full rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-10 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                                      @for(model of availableModels; track model) { <option [value]="model">{{model}}</option> }
-                                  </select>
-                                } @else {
-                                    <input type="text" [id]="key" [value]="customModelValues()[key]" (input)="updateCustomModelValue(key, $event)" placeholder="Nhập tên model tùy chỉnh" class="block w-full rounded-lg border-transparent bg-slate-100 py-2 px-3 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-                                }
-                                <div class="flex items-center">
-                                    <input [id]="key + '-custom-toggle'" type="checkbox" [checked]="useCustomModel()[key]" (change)="toggleCustomModel(key)" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                    <label [for]="key + '-custom-toggle'" class="ml-2 block text-sm text-gray-900 cursor-pointer">Sử dụng tên Model tùy chỉnh?</label>
-                                </div>
-                              </div>
+                              <select [id]="key" [value]="config.model_id" (change)="updateStandardModelSelection(key, $event)" class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-10 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                                  @for(model of availableModels(); track model) { <option [value]="model">{{model}}</option> }
+                              </select>
                           </div>
                         }
+                        
+                        <div class="mt-4 pt-4 border-t">
+                          <label for="new-model-input" class="block text-sm font-medium mb-1 text-blue-700">➕ Thêm Model Mới (Tùy chỉnh)</label>
+                          <div class="flex gap-2">
+                            <input id="new-model-input" type="text" 
+                                   [value]="newModelInput()"
+                                   (input)="newModelInput.set($event.target.value)"
+                                   placeholder="Ví dụ: gemini-3.0-pro" 
+                                   class="flex-1 p-2 border rounded border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
+                            <button type="button" (click)="addNewModel()" 
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                              Thêm
+                            </button>
+                          </div>
+                          <p class="text-xs text-gray-500 mt-1">
+                            *Nhập tên Model ID chính xác từ Google AI Studio. Hệ thống sẽ tự động cập nhật vào danh sách.
+                          </p>
+                        </div>
+                        
                         <button type="submit" class="w-full inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">Lưu Cấu hình</button>
                         @if(configSaved()) { <p class="text-sm text-center text-green-600">Đã lưu thành công!</p> }
                     </form>

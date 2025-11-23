@@ -313,6 +313,59 @@ export class FinancialsService {
     this.unmappedKocs.set(localUnmappedKocs.sort((a,b) => b.totalGmv - a.totalGmv));
   }
 
+  getKocOrders(kocKey: string): any[] {
+    const allOrders = this.orderData();
+    const inventory = this.inventoryData();
+  
+    if (allOrders.length === 0 || inventory.length === 0) return [];
+    
+    const inventorySkuMap = new Map<string, InventoryData[]>();
+    inventory.forEach(item => {
+        const key = (item.inventory_sku || '').toLowerCase().trim();
+        if (key) {
+            if (!inventorySkuMap.has(key)) inventorySkuMap.set(key, []);
+            inventorySkuMap.get(key)!.push(item);
+        }
+    });
+  
+    const inventoryNameMap = new Map<string, InventoryData[]>();
+    inventory.forEach(item => {
+        const key = this.normalizeName(item.name || '');
+        if (key) {
+            if (!inventoryNameMap.has(key)) inventoryNameMap.set(key, []);
+            inventoryNameMap.get(key)!.push(item);
+        }
+    });
+  
+    const orders = allOrders.filter(o => this.normalizeKoc(o.koc_username || 'Organic/Khác') === kocKey);
+    
+    return orders.map(o => {
+      const cogs = this.findCogs(o, inventorySkuMap, inventoryNameMap) * (o.quantity || 1);
+      
+      const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
+      const refundKeywords = ['hoàn tiền'];
+      const status = (o.status || '').toLowerCase();
+      const returnStatus = (o.return_status || '').toLowerCase();
+      const isReturn = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => returnStatus.includes(kw));
+  
+      const nmv = isReturn ? 0 : (o.revenue || 0);
+      const commission = o.commission || 0;
+      const netProfit = nmv - cogs - commission;
+      
+      return {
+        orderId: o.order_id,
+        productName: o.product_name,
+        status: o.status,
+        quantity: o.quantity,
+        price: o.revenue,
+        cogs: cogs,
+        commission: commission,
+        netProfit: netProfit,
+        isReturn: isReturn
+      };
+    });
+  }
+
   dashboardMetrics = computed(() => {
     const pnlData = this.kocPnlData();
     if (pnlData.length === 0) {

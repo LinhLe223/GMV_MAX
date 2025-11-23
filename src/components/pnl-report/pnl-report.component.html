@@ -81,19 +81,85 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @for(koc of sortedKocPnlData(); track koc.kocName) {
-                        <tr class="hover:bg-slate-50" [class]="koc.netProfit < 0 ? 'bg-red-50' : ''">
-                            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{koc.kocName}}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.adsCost | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.adsGmv | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.totalGmv | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{{koc.nmv | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.failedOrders | number:'1.0-0'}} ({{koc.returnCancelPercent | number:'1.1-1'}}%)</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm font-bold" [class]="koc.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{koc.netProfit | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-lg">
-                                @if (koc.netProfit > 0) { <span>✅</span> } @else { <span>💀</span> }
-                            </td>
-                        </tr>
+                    @for(item of sortedKocPnlData(); track item.kocName) {
+                        <ng-container>
+                             <tr class="hover:bg-slate-50 cursor-pointer transition-colors" 
+                                [class.bg-blue-50]="selectedKocPnl() === item"
+                                (click)="selectKocForDetail(item)">
+                                <td class="px-4 py-3 font-medium text-blue-600">
+                                  {{ item.kocName }}
+                                  @if(selectedKocPnl() === item) {
+                                    <span class="text-xs ml-2">▼</span>
+                                  } @else {
+                                    <span class="text-xs ml-2 text-gray-400">▶</span>
+                                  }
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{item.adsCost | number:'1.0-0'}} đ</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{item.adsGmv | number:'1.0-0'}} đ</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{item.totalGmv | number:'1.0-0'}} đ</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{{item.nmv | number:'1.0-0'}} đ</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{item.failedOrders | number:'1.0-0'}} ({{item.returnCancelPercent | number:'1.1-1'}}%)</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold" [class]="item.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{item.netProfit | number:'1.0-0'}} đ</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-lg">
+                                    @if (item.netProfit > 0) { <span>✅</span> } @else { <span>💀</span> }
+                                </td>
+                            </tr>
+                            @if(selectedKocPnl() === item) {
+                                <tr>
+                                    <td colspan="8" class="p-0 border-b border-blue-200">
+                                        <div class="bg-slate-50 p-4 shadow-inner">
+                                            <div class="font-bold text-gray-700 mb-2 flex justify-between">
+                                                <span>📦 Danh sách đơn hàng của {{ item.kocName }}</span>
+                                                <span class="text-sm font-normal">Tổng: {{ kocOrderDetails().length }} đơn</span>
+                                            </div>
+                                            
+                                            <div class="max-h-80 overflow-y-auto">
+                                                <table class="w-full text-sm bg-white border rounded">
+                                                    <thead class="bg-gray-100 text-gray-600 sticky top-0">
+                                                        <tr>
+                                                            <th class="p-2 text-left">ID Đơn Hàng</th>
+                                                            <th class="p-2 text-left">Sản Phẩm</th>
+                                                            <th class="p-2 text-center">SL</th>
+                                                            <th class="p-2 text-right">Giá Bán</th>
+                                                            <th class="p-2 text-right">Giá Vốn</th>
+                                                            <th class="p-2 text-right">Hoa Hồng</th>
+                                                            <th class="p-2 text-right">Lãi Gộp</th>
+                                                            <th class="p-2 text-center">Trạng Thái</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y">
+                                                        @for(order of kocOrderDetails(); track order.orderId) {
+                                                            <tr class="hover:bg-gray-50">
+                                                                <td class="p-2 font-mono text-xs">{{ order.orderId }}</td>
+                                                                <td class="p-2 max-w-[250px] truncate" [title]="order.productName">
+                                                                {{ order.productName }}
+                                                                </td>
+                                                                <td class="p-2 text-center">{{ order.quantity }}</td>
+                                                                <td class="p-2 text-right">{{ order.price | number }}</td>
+                                                                <td class="p-2 text-right text-gray-500">{{ order.cogs | number }}</td>
+                                                                <td class="p-2 text-right text-gray-500">{{ order.commission | number }}</td>
+                                                                <td class="p-2 text-right font-bold" 
+                                                                    [class.text-green-600]="order.netProfit > 0" 
+                                                                    [class.text-red-600]="order.netProfit <= 0">
+                                                                {{ order.netProfit | number }}
+                                                                </td>
+                                                                <td class="p-2 text-center">
+                                                                <span class="px-2 py-0.5 rounded-full text-[10px]"
+                                                                        [class.bg-green-100]="!order.isReturn" [class.text-green-800]="!order.isReturn"
+                                                                        [class.bg-red-100]="order.isReturn" [class.text-red-700]="order.isReturn">
+                                                                    {{ order.status }}
+                                                                </span>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </ng-container>
                     }
                 </tbody>
             </table>

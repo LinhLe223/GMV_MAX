@@ -76,7 +76,7 @@
   <div class="mb-6">
     <h3 class="font-bold text-gray-700 mb-2">📊 Phân loại KOC (Ma trận BCG)</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg relative">
+      <div (click)="filterBcg('STAR')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-yellow-50 border-yellow-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'STAR'" [class.ring-yellow-300]="activeBcgFilter() === 'STAR'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'STAR'">
         <div class="absolute top-2 right-2 text-2xl">⭐</div>
         <h4 class="font-bold text-yellow-800">NGÔI SAO</h4>
         <div class="text-xs text-gray-600">Lợi nhuận Cao - GMV Cao</div>
@@ -85,7 +85,7 @@
           @for(k of bcgGroups().STAR.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
         </div>
       </div>
-       <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg relative">
+       <div (click)="filterBcg('QUESTION')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-blue-50 border-blue-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'QUESTION'" [class.ring-blue-300]="activeBcgFilter() === 'QUESTION'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'QUESTION'">
         <div class="absolute top-2 right-2 text-2xl">❓</div>
         <h4 class="font-bold text-blue-800">DẤU HỎI</h4>
         <div class="text-xs text-gray-600">Lợi nhuận Cao - GMV Thấp</div>
@@ -94,7 +94,7 @@
           @for(k of bcgGroups().QUESTION.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
         </div>
       </div>
-      <div class="bg-green-50 border border-green-200 p-3 rounded-lg relative">
+      <div (click)="filterBcg('COW')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-green-50 border-green-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'COW'" [class.ring-green-300]="activeBcgFilter() === 'COW'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'COW'">
         <div class="absolute top-2 right-2 text-2xl">🐮</div>
         <h4 class="font-bold text-green-800">BÒ SỮA</h4>
         <div class="text-xs text-gray-600">Lợi nhuận Thấp - GMV Cao</div>
@@ -103,7 +103,7 @@
           @for(k of bcgGroups().COW.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
         </div>
       </div>
-      <div class="bg-gray-100 border border-gray-200 p-3 rounded-lg relative">
+      <div (click)="filterBcg('DOG')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-gray-100 border-gray-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'DOG'" [class.ring-gray-300]="activeBcgFilter() === 'DOG'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'DOG'">
         <div class="absolute top-2 right-2 text-2xl">🐕</div>
         <h4 class="font-bold text-gray-800">CHÓ MỰC</h4>
         <div class="text-xs text-gray-600">Lợi nhuận Thấp - GMV Thấp</div>

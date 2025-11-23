@@ -45,21 +45,33 @@ export class GodModeComponent {
     return this.financialsService.calculateGodModeSummary(data);
   });
 
-  bcgGroups = computed(() => {
+  enrichedKocData = computed(() => {
     const data = this.kocData();
     const summaryData = this.summary();
-    const groups: { [key: string]: KocPnlData[] } = { STAR: [], COW: [], QUESTION: [], DOG: [] };
-    if (!summaryData || data.length === 0) return groups;
+    if (!summaryData || data.length === 0) return data;
 
-    const avgGMV = summaryData.totalRevenue / data.length;
-    const avgProfit = summaryData.totalNetProfit / data.length;
+    const avgGMV = summaryData.totalRevenue > 0 ? summaryData.totalRevenue / data.length : 0;
+    const avgProfit = summaryData.totalNetProfit / data.length; // Can be negative
+
+    return data.map(koc => ({
+        ...koc,
+        bcgLabel: this.financialsService.classifyBCG(koc, avgGMV, avgProfit)
+    }));
+  });
+
+  bcgGroups = computed(() => {
+    const data = this.enrichedKocData();
+    const groups: { [key: string]: KocPnlData[] } = { STAR: [], COW: [], QUESTION: [], DOG: [] };
+    if (data.length === 0) return groups;
 
     data.forEach(koc => {
-      const bcgLabel = this.financialsService.classifyBCG(koc, avgGMV, avgProfit);
-      groups[bcgLabel].push(koc);
+      groups[(koc as any).bcgLabel].push(koc);
     });
     return groups;
   });
+
+  // --- BCG Filter state ---
+  activeBcgFilter = signal<'STAR' | 'COW' | 'QUESTION' | 'DOG' | ''>('');
 
   // --- V2 AI Assistant State ---
   aiMode = signal<'fast' | 'standard' | 'deep'>('standard');
@@ -69,7 +81,14 @@ export class GodModeComponent {
 
 
   sortedData = computed(() => {
-    const data = this.viewMode() === 'koc' ? this.kocData() : this.productData();
+    let data: (KocPnlData | ProductPnlData)[] = this.viewMode() === 'koc' ? this.enrichedKocData() : this.productData();
+
+    // Apply BCG filter if active
+    const filter = this.activeBcgFilter();
+    if (this.viewMode() === 'koc' && filter) {
+        data = data.filter(item => (item as any).bcgLabel === filter);
+    }
+
     const key = this.sortKey();
     const dir = this.sortDirection() === 'asc' ? 1 : -1;
 
@@ -118,6 +137,7 @@ export class GodModeComponent {
     if (orders.length === 0 || !koc) return [];
 
     const kocAds = this.dataService.kocReportStats().find(k => k.name.toLowerCase().trim() === koc.kocName.toLowerCase().trim());
+    // FIX: Explicitly type the Map to help TypeScript infer the correct type for `adData`
     const adsByVideoId = new Map<string, TiktokAd>(kocAds?.videos.map(v => [v.videoId, v]) || []);
 
     const detailsByVideo = new Map<string, {
@@ -218,6 +238,11 @@ export class GodModeComponent {
       this.detailSortKey.set(key);
       this.detailSortDirection.set('desc');
     }
+  }
+
+  filterBcg(label: 'STAR' | 'COW' | 'QUESTION' | 'DOG') {
+    this.activeBcgFilter.update(current => current === label ? '' : label);
+    this.currentPage.set(1);
   }
 
   async analyzeAI(mode: 'fast' | 'standard' | 'deep') {

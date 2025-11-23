@@ -14,6 +14,7 @@ const CAMPAIGN_PLAN_KEY = 'enterprise_campaign_plan';
 const SYSTEM_CONFIG_KEY = 'enterprise_system_config';
 const TOKEN_LOG_KEY = 'enterprise_token_usage_logs';
 const AI_MODES_CONFIG_KEY = 'enterprise_ai_modes_config';
+const CUSTOM_MODELS_KEY = 'enterprise_custom_models';
 
 export interface AiModeConfig { model: string; prompt: string; }
 
@@ -233,6 +234,7 @@ export class EnterpriseService {
   private systemConfigs = signal<SystemConfig[]>([]);
   private tokenUsageLogs = signal<TokenUsageLog[]>([]);
   private aiModesConfig = signal<Record<'fast' | 'standard' | 'deep', AiModeConfig>>(DEFAULT_AI_MODES_CONFIG);
+  private customModels = signal<string[]>([]);
   
   // State for persisting AI advisor plan across views
   activeAdvisorPlan = signal<any | null>(null);
@@ -246,6 +248,7 @@ export class EnterpriseService {
     effect(() => this.saveToLocalStorage(SYSTEM_CONFIG_KEY, this.systemConfigs()));
     effect(() => this.saveToLocalStorage(TOKEN_LOG_KEY, this.tokenUsageLogs()));
     effect(() => this.saveToLocalStorage(AI_MODES_CONFIG_KEY, this.aiModesConfig()));
+    effect(() => this.saveToLocalStorage(CUSTOM_MODELS_KEY, this.customModels()));
   }
 
   private saveToLocalStorage(key: string, data: any): void {
@@ -302,6 +305,10 @@ export class EnterpriseService {
     } else {
         this.aiModesConfig.set(DEFAULT_AI_MODES_CONFIG);
     }
+
+    // Custom Models
+    const customModelsJson = localStorage.getItem(CUSTOM_MODELS_KEY);
+    this.customModels.set(customModelsJson ? JSON.parse(customModelsJson) : []);
   }
 
   private truncate(str: string | undefined | null, maxLength: number): string {
@@ -428,5 +435,13 @@ export class EnterpriseService {
 
   updateAiModesConfig(newConfig: Record<'fast' | 'standard' | 'deep', AiModeConfig>) {
     this.aiModesConfig.set(newConfig);
+  }
+
+  // --- Custom Models ---
+  getCustomModels(): string[] { return this.customModels(); }
+  addCustomModel(modelId: string) {
+    if (modelId && !this.customModels().includes(modelId)) {
+        this.customModels.update(models => [...models, modelId]);
+    }
   }
 }

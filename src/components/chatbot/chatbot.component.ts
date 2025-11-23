@@ -1,9 +1,10 @@
-import { Component, ChangeDetectionStrategy, inject, signal, OnInit, ElementRef, viewChild, afterNextRender } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, OnInit, ElementRef, viewChild, afterNextRender, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GeminiService } from '../../services/gemini.service';
 import { DataService } from '../../services/data.service';
 import { EnterpriseService } from '../../services/enterprise.service';
 import { ChatMessage } from '../../models/chat.model';
+import { FinancialsService } from '../../services/financials.service';
 
 @Component({
   selector: 'app-chatbot',
@@ -16,14 +17,47 @@ export class ChatbotComponent implements OnInit {
   geminiService = inject(GeminiService);
   dataService = inject(DataService);
   enterpriseService = inject(EnterpriseService);
+  financialsService = inject(FinancialsService);
   
   chatHistory = signal<ChatMessage[]>([]);
   currentMessage = signal('');
   isLoading = signal(false);
   error = signal<string | null>(null);
   
-  private systemInstruction = signal<string>('');
   private chatContainerEl = viewChild<ElementRef>('chatContainer');
+
+  systemInstruction = computed(() => {
+    const enterprisePrompt = this.enterpriseService.getPrompt('chatbot_context')?.content || 'You are a helpful assistant.';
+
+    if (!this.financialsService.financialsLoaded()) {
+        const adsSummary = this.dataService.summaryStats();
+        const context = {
+            "Ghi chú": "Hiện chỉ có dữ liệu Ads. Phân tích sẽ dựa trên các chỉ số quảng cáo.",
+            "Tóm tắt dữ liệu Ads": adsSummary
+        };
+        return `${enterprisePrompt}\n\nDưới đây là bản tóm tắt dữ liệu đã được tải lên:\n${JSON.stringify(context, null, 2)}`;
+    }
+
+    // Financial data is loaded, provide richer context
+    const pnlSummary = this.financialsService.dashboardMetrics();
+    const topKocs = this.financialsService.kocPnlData()
+      .sort((a, b) => b.netProfit - a.netProfit)
+      .slice(0, 5)
+      .map(k => ({
+          kocName: k.kocName,
+          netProfit: k.netProfit,
+          adsCost: k.adsCost,
+          nmv: k.nmv
+      }));
+
+    const context = {
+        "Ghi chú": "Đã có đủ dữ liệu Ads, Đơn hàng và Kho (GOD MODE). Phân tích sẽ tập trung vào Lợi nhuận ròng.",
+        "Tóm tắt P&L Tổng quan": pnlSummary,
+        "Top 5 KOC theo Lợi nhuận ròng": topKocs
+    };
+
+    return `${enterprisePrompt}\n\n[DỮ LIỆU TÀI CHÍNH VÀ P&L TÓM TẮT]\n${JSON.stringify(context, null, 2)}`;
+});
 
   constructor() {
     afterNextRender(() => {
@@ -32,17 +66,6 @@ export class ChatbotComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const initialContext = this.dataService.summaryStats();
-    
-    const systemInstructionContent = this.enterpriseService.getPrompt('chatbot_context')?.content || 'You are a helpful assistant.';
-    const fullSystemInstruction = `
-      ${systemInstructionContent}
-      
-      Dưới đây là bản tóm tắt dữ liệu đã được tải lên:
-      ${JSON.stringify(initialContext, null, 2)}
-    `;
-    this.systemInstruction.set(fullSystemInstruction);
-
     if (!this.geminiService.isInitialized()) {
       this.error.set("Không thể khởi tạo Chatbot. Vui lòng kiểm tra API Key.");
     } else {
@@ -114,7 +137,7 @@ export class ChatbotComponent implements OnInit {
 
   private scrollToBottom(): void {
     this.chatContainerEl()?.nativeElement.scrollTo({
-        top: this.chatContainerEl().nativeElement.scrollHeight,
+        top: this.chatContainerEl()().nativeElement.scrollHeight,
         behavior: 'smooth'
     });
   }

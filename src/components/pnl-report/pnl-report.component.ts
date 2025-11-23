@@ -23,6 +23,9 @@ export class PnlReportComponent {
 
   sortKey = signal<SortKey>('netProfit');
   sortDirection = signal<'asc' | 'desc'>('desc');
+  
+  selectedKocPnl = signal<KocPnlData | null>(null);
+  kocOrderDetails = signal<any[]>([]);
 
   sortedKocPnlData = computed(() => {
     const data = this.financialsService.kocPnlData();
@@ -48,5 +51,18 @@ export class PnlReportComponent {
       this.sortKey.set(key);
       this.sortDirection.set('desc');
     }
+  }
+
+  selectKocForDetail(koc: KocPnlData) {
+    if (this.selectedKocPnl() === koc) {
+      this.selectedKocPnl.set(null); // Click lại thì đóng
+      this.kocOrderDetails.set([]);
+      return;
+    }
+    this.selectedKocPnl.set(koc);
+    // Gọi Service lấy list đơn hàng
+    this.kocOrderDetails.set(
+      this.financialsService.getKocOrders(koc.normalizedKocName)
+    );
   }
 }
