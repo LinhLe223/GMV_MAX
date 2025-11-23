@@ -1,7 +1,8 @@
 
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
-import { OrderData, InventoryData, KocPnlData, EnrichedOrderData } from '../models/financial.model';
+import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData } from '../models/financial.model';
 import { DataService, KocReportStat } from './data.service';
 import { TiktokAd } from '../models/tiktok-ad.model';
 
@@ -228,6 +229,7 @@ export class FinancialsService {
             
             enrichedOrders.push({
               order_id: order.order_id,
+              product_id: order.product_id,
               product_name: order.product_name,
               status: order.status,
               revenue: order.revenue,
@@ -535,5 +537,89 @@ export class FinancialsService {
 
     const num = parseFloat(strValue);
     return isNaN(num) ? 0 : num;
+  }
+  
+  productPnlData = computed(() => this.calculateProductPnl());
+
+  private calculateProductPnl(): ProductPnlData[] {
+    const orders = this.orderData();
+    const inventory = this.inventoryData();
+
+    if (orders.length === 0 || inventory.length === 0) {
+      return [];
+    }
+
+    // Prepare inventory maps for findCogs
+    const inventorySkuMap = new Map<string, InventoryData[]>();
+    inventory.forEach(item => {
+        const key = (item.inventory_sku || '').toLowerCase().trim();
+        if (key) {
+            if (!inventorySkuMap.has(key)) inventorySkuMap.set(key, []);
+            inventorySkuMap.get(key)!.push(item);
+        }
+    });
+
+    const inventoryNameMap = new Map<string, InventoryData[]>();
+    inventory.forEach(item => {
+        const key = this.normalizeName(item.name || '');
+        if (key) {
+            if (!inventoryNameMap.has(key)) inventoryNameMap.set(key, []);
+            inventoryNameMap.get(key)!.push(item);
+        }
+    });
+
+    const productMap = new Map<string, Omit<ProductPnlData, 'netProfit' | 'returnRate'>>();
+
+    orders.forEach(order => {
+      const key = order.product_id || order.seller_sku;
+      if (!key) return; // Skip orders without a product identifier
+
+      if (!productMap.has(key)) {
+        productMap.set(key, {
+          productId: order.product_id,
+          productName: order.product_name,
+          sku: order.seller_sku,
+          nmv: 0,
+          gmv: 0,
+          cogs: 0,
+          commission: 0,
+          adsCost: 0, // Hardcoded to 0 as mapping is complex
+          returnCount: 0,
+          successCount: 0,
+          totalCount: 0
+        });
+      }
+
+      const item = productMap.get(key)!;
+      item.totalCount++;
+      item.gmv += order.revenue || 0;
+
+      const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
+      const refundKeywords = ['hoàn tiền'];
+      const status = (order.status || '').toLowerCase();
+      const returnStatus = (order.return_status || '').toLowerCase();
+      const isReturn = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => returnStatus.includes(kw));
+
+      if (isReturn) {
+        item.returnCount++;
+      } else {
+        item.successCount++;
+        item.nmv += order.revenue || 0;
+        item.commission += order.commission || 0;
+        
+        const skuCost = this.findCogs(order, inventorySkuMap, inventoryNameMap);
+        item.cogs += (order.quantity || 1) * skuCost;
+      }
+    });
+
+    return Array.from(productMap.values()).map(p => {
+      const netProfit = p.nmv - p.cogs - p.commission - p.adsCost;
+      const returnRate = p.totalCount > 0 ? (p.returnCount / p.totalCount) * 100 : 0;
+      return {
+        ...p,
+        netProfit,
+        returnRate
+      };
+    });
   }
 }

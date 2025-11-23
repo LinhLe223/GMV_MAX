@@ -1,4 +1,5 @@
 
+
 export interface OrderData {
   order_id: string;
   koc_username: string;
@@ -45,6 +46,7 @@ export interface KocPnlData {
 
 export interface EnrichedOrderData {
   order_id: string;
+  product_id: string;
   product_name: string;
   status: string;
   revenue: number;
@@ -58,10 +60,27 @@ export interface KocDetailItem {
   videoId: string;
   videoName: string;
   productName: string;
+  productId: string;
   revenue: number;
   cost: number;
   returnCount: number;
   commission: number;
   roi: number;
   cir: number;
+}
+
+export interface ProductPnlData {
+  productId: string;
+  productName: string;
+  sku: string;
+  nmv: number;
+  gmv: number;
+  cogs: number;
+  commission: number;
+  adsCost: number;
+  returnCount: number;
+  successCount: number;
+  totalCount: number;
+  netProfit: number;
+  returnRate: number;
 }

@@ -1,21 +1,10 @@
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinancialsService } from '../../services/financials.service';
-import { KocPnlData, EnrichedOrderData, KocDetailItem } from '../../models/financial.model';
+import { KocPnlData, EnrichedOrderData, KocDetailItem, ProductPnlData } from '../../models/financial.model';
 import { PaginationComponent } from '../pagination/pagination.component';
 import { DataService } from '../../services/data.service';
-// FIX: Add missing import for TiktokAd type.
 import { TiktokAd } from '../../models/tiktok-ad.model';
-
-type SortKey = 
-  | 'netProfit_desc' 
-  | 'netProfit_asc' 
-  | 'nmv_desc'
-  | 'adsGmv_desc'
-  | 'returnCancelPercent_asc'
-  | 'totalCommission_desc'
-  | 'totalCogs_desc'
-  | 'adsCost_desc';
 
 type DetailSortKey = keyof KocDetailItem;
 
@@ -34,29 +23,36 @@ export class GodModeComponent {
   
   // --- View State ---
   selectedKoc = signal<KocPnlData | null>(null);
+  viewMode = signal<'koc' | 'product'>('koc');
+  copiedVideoId = signal<string | null>(null);
 
-  // --- Master Table State ---
-  sortKey = signal<SortKey>('netProfit_desc');
+  // --- Sorting & Pagination State ---
+  sortKey = signal<string>('netProfit');
+  sortDirection = signal<'asc' | 'desc'>('desc');
   currentPage = signal(1);
   itemsPerPage = signal(20);
   
-  // --- Master Table Data ---
-  sortedData = computed(() => {
-    const data = this.financialsService.kocPnlData();
-    const key = this.sortKey();
+  // --- Data ---
+  kocData = this.financialsService.kocPnlData;
+  productData = this.financialsService.productPnlData;
 
-    return [...data].sort((a, b) => {
-      switch (key) {
-        case 'netProfit_desc': return b.netProfit - a.netProfit;
-        case 'netProfit_asc': return a.netProfit - b.netProfit;
-        case 'nmv_desc': return b.nmv - a.nmv;
-        case 'adsGmv_desc': return b.adsGmv - a.adsGmv;
-        case 'returnCancelPercent_asc': return a.returnCancelPercent - b.returnCancelPercent;
-        case 'totalCommission_desc': return b.totalCommission - a.totalCommission;
-        case 'totalCogs_desc': return b.totalCogs - a.totalCogs;
-        case 'adsCost_desc': return b.adsCost - a.adsCost;
-        default: return 0;
+  sortedData = computed(() => {
+    const data = this.viewMode() === 'koc' ? this.kocData() : this.productData();
+    const key = this.sortKey();
+    const dir = this.sortDirection() === 'asc' ? 1 : -1;
+
+    type DataItem = KocPnlData | ProductPnlData;
+
+    return [...data].sort((a: DataItem, b: DataItem) => {
+      const valA = (a as any)[key] ?? 0;
+      const valB = (b as any)[key] ?? 0;
+      
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.localeCompare(valB) * dir;
       }
+      if (valA < valB) return -1 * dir;
+      if (valA > valB) return 1 * dir;
+      return 0;
     });
   });
 
@@ -78,16 +74,6 @@ export class GodModeComponent {
   detailSortDirection = signal<'asc' | 'desc'>('desc');
 
   // --- Drill-Down View Data ---
-  selectedKocDetails = computed(() => {
-    const koc = this.selectedKoc();
-    if (!koc) return null;
-    return {
-      totalOrders: koc.totalOrders,
-      nmv: koc.nmv,
-      netProfit: koc.netProfit
-    };
-  });
-  
   selectedKocOrders = computed(() => {
     const koc = this.selectedKoc();
     if (!koc) return [];
@@ -100,7 +86,6 @@ export class GodModeComponent {
     if (orders.length === 0 || !koc) return [];
 
     const kocAds = this.dataService.kocReportStats().find(k => k.name.toLowerCase().trim() === koc.kocName.toLowerCase().trim());
-    // FIX: Explicitly type the Map and handle potential undefined 'kocAds' to prevent runtime errors and fix type inference.
     const adsByVideoId = new Map<string, TiktokAd>(kocAds?.videos.map(v => [v.videoId, v]) || []);
 
     const detailsByVideo = new Map<string, {
@@ -108,6 +93,7 @@ export class GodModeComponent {
         returnCount: number;
         commission: number;
         productName: string;
+        productId: string;
     }>();
 
     for (const order of orders) {
@@ -117,7 +103,8 @@ export class GodModeComponent {
           revenue: 0,
           returnCount: 0,
           commission: 0,
-          productName: order.product_name, // Take first product name
+          productName: order.product_name,
+          productId: order.product_id,
         });
       }
 
@@ -142,6 +129,7 @@ export class GodModeComponent {
             videoId: videoId,
             videoName: adData?.videoTitle || 'N/A',
             productName: data.productName,
+            productId: data.productId,
             revenue: data.revenue,
             cost: cost,
             returnCount: data.returnCount,
@@ -170,30 +158,27 @@ export class GodModeComponent {
     });
   });
 
-  // --- Event Handlers ---
+  // --- Event Handlers & Helpers ---
   selectKoc(koc: KocPnlData): void {
-    this.selectedKoc.set(koc);
+    this.selectedKoc.set(this.selectedKoc() === koc ? null : koc);
   }
 
-  unselectKoc(): void {
-    this.selectedKoc.set(null);
-  }
-
-  onSortChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value as SortKey;
-    this.sortKey.set(value);
+  onSort(key: string): void {
+    if (this.sortKey() === key) {
+      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortKey.set(key);
+      this.sortDirection.set('desc');
+    }
     this.currentPage.set(1);
   }
 
-  onPageChange(page: number): void {
-    this.currentPage.set(page);
-  }
-
+  onPageChange(page: number): void { this.currentPage.set(page); }
   onItemsPerPageChange(perPage: number): void {
     this.itemsPerPage.set(perPage);
     this.currentPage.set(1);
   }
-
+  
   onDetailSort(key: DetailSortKey): void {
     if (this.detailSortKey() === key) {
       this.detailSortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
@@ -202,10 +187,41 @@ export class GodModeComponent {
       this.detailSortDirection.set('desc');
     }
   }
+
+  copyToClipboard(text: string) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      this.copiedVideoId.set(text);
+      setTimeout(() => this.copiedVideoId.set(null), 2000);
+    }).catch(err => console.error('Failed to copy ID: ', err));
+  }
+  
+  getTikTokVideoLink(username: string, videoId: string): string {
+    if (!username || !videoId || videoId === 'no-video') return '#';
+    const cleanUser = username.replace('@', '').trim();
+    return `https://www.tiktok.com/@${cleanUser}/video/${videoId}`;
+  }
+  
+  getKocInsight(koc: KocPnlData): { tag: string, color: string } {
+    if (koc.netProfit > 500000 && (koc.returnCancelPercent < 20 || koc.returnCancelPercent === 0)) {
+        return { tag: '🔥 VÍT MẠNH', color: 'bg-green-100 text-green-800' };
+    }
+    if (koc.netProfit < 0 && koc.adsCost > 2000000) {
+        return { tag: '✂️ CẮT LỖ', color: 'bg-red-100 text-red-800' };
+    }
+    if (koc.returnCancelPercent > 50) {
+        return { tag: '⚠️ HOÀN CAO', color: 'bg-yellow-100 text-yellow-800' };
+    }
+    if (koc.adsCost > 500000 && koc.nmv === 0) {
+        return { tag: '🚫 KHÔNG RA SỐ', color: 'bg-red-100 text-red-800' };
+    }
+    return { tag: '➖ Ổn định', color: 'bg-gray-100 text-gray-800' };
+  }
   
   isFailedOrder(order: EnrichedOrderData): boolean {
     const status = (order.status || '').toLowerCase();
     const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
-    return failedStatus.some(s => status.includes(s));
+    const refundKeywords = ['hoàn tiền'];
+    return failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => status.includes(kw));
   }
 }
