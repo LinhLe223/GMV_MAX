@@ -232,7 +232,9 @@ export class FinancialsService {
               status: order.status,
               revenue: order.revenue,
               cogs: cogsForItem,
-              grossProfit: order.revenue - cogsForItem
+              grossProfit: order.revenue - cogsForItem,
+              videoId: order.video_id,
+              commission: order.commission,
             });
         });
         

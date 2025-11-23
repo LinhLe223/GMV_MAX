@@ -1,14 +1,11 @@
-
-
-
-
-
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinancialsService } from '../../services/financials.service';
-import { KocPnlData, EnrichedOrderData } from '../../models/financial.model';
+import { KocPnlData, EnrichedOrderData, KocDetailItem } from '../../models/financial.model';
 import { PaginationComponent } from '../pagination/pagination.component';
 import { DataService } from '../../services/data.service';
+// FIX: Add missing import for TiktokAd type.
+import { TiktokAd } from '../../models/tiktok-ad.model';
 
 type SortKey = 
   | 'netProfit_desc' 
@@ -19,6 +16,8 @@ type SortKey =
   | 'totalCommission_desc'
   | 'totalCogs_desc'
   | 'adsCost_desc';
+
+type DetailSortKey = keyof KocDetailItem;
 
 
 @Component({
@@ -74,6 +73,10 @@ export class GodModeComponent {
     return data.slice(start, end);
   });
   
+  // --- Drill-Down View State ---
+  detailSortKey = signal<DetailSortKey>('revenue');
+  detailSortDirection = signal<'asc' | 'desc'>('desc');
+
   // --- Drill-Down View Data ---
   selectedKocDetails = computed(() => {
     const koc = this.selectedKoc();
@@ -89,6 +92,82 @@ export class GodModeComponent {
     const koc = this.selectedKoc();
     if (!koc) return [];
     return this.financialsService.ordersWithCogsByKoc().get(koc.normalizedKocName) || [];
+  });
+
+  kocDetails = computed<KocDetailItem[]>(() => {
+    const orders = this.selectedKocOrders();
+    const koc = this.selectedKoc();
+    if (orders.length === 0 || !koc) return [];
+
+    const kocAds = this.dataService.kocReportStats().find(k => k.name.toLowerCase().trim() === koc.kocName.toLowerCase().trim());
+    // FIX: Explicitly type the Map and handle potential undefined 'kocAds' to prevent runtime errors and fix type inference.
+    const adsByVideoId = new Map<string, TiktokAd>(kocAds?.videos.map(v => [v.videoId, v]) || []);
+
+    const detailsByVideo = new Map<string, {
+        revenue: number;
+        returnCount: number;
+        commission: number;
+        productName: string;
+    }>();
+
+    for (const order of orders) {
+      const videoId = order.videoId || 'no-video';
+      if (!detailsByVideo.has(videoId)) {
+        detailsByVideo.set(videoId, {
+          revenue: 0,
+          returnCount: 0,
+          commission: 0,
+          productName: order.product_name, // Take first product name
+        });
+      }
+
+      const detail = detailsByVideo.get(videoId)!;
+      const isFailed = this.isFailedOrder(order);
+      if (!isFailed) {
+          detail.revenue += order.revenue;
+          detail.commission += order.commission;
+      } else {
+          detail.returnCount++;
+      }
+    }
+    
+    const result: KocDetailItem[] = [];
+    for (const [videoId, data] of detailsByVideo.entries()) {
+        const adData = adsByVideoId.get(videoId);
+        const cost = adData?.cost || 0;
+        const roi = cost > 0 ? data.revenue / cost : 0;
+        const cir = data.revenue > 0 ? (cost / data.revenue) * 100 : 0;
+        
+        result.push({
+            videoId: videoId,
+            videoName: adData?.videoTitle || 'N/A',
+            productName: data.productName,
+            revenue: data.revenue,
+            cost: cost,
+            returnCount: data.returnCount,
+            commission: data.commission,
+            roi: roi,
+            cir: cir,
+        });
+    }
+    return result;
+  });
+
+  sortedKocDetails = computed(() => {
+    const data = this.kocDetails();
+    const key = this.detailSortKey();
+    const dir = this.detailSortDirection() === 'asc' ? 1 : -1;
+
+    return [...data].sort((a, b) => {
+      const valA = a[key];
+      const valB = b[key];
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.localeCompare(valB) * dir;
+      }
+      if (valA < valB) return -1 * dir;
+      if (valA > valB) return 1 * dir;
+      return 0;
+    });
   });
 
   // --- Event Handlers ---
@@ -113,6 +192,15 @@ export class GodModeComponent {
   onItemsPerPageChange(perPage: number): void {
     this.itemsPerPage.set(perPage);
     this.currentPage.set(1);
+  }
+
+  onDetailSort(key: DetailSortKey): void {
+    if (this.detailSortKey() === key) {
+      this.detailSortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.detailSortKey.set(key);
+      this.detailSortDirection.set('desc');
+    }
   }
   
   isFailedOrder(order: EnrichedOrderData): boolean {

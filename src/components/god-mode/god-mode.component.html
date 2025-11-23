@@ -8,6 +8,8 @@
 
 
 
+
+
 <div class="space-y-8">
   @if (selectedKoc(); as koc) {
     <!-- Drill-Down View -->
@@ -28,32 +30,72 @@
       }
 
       <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
-        <div class="p-4 border-b"><h3 class="text-lg font-medium leading-6 text-gray-900">Chi tiết Đơn hàng</h3></div>
+        <div class="p-4 border-b"><h3 class="text-lg font-medium leading-6 text-gray-900">Chi tiết hiệu quả theo Video/Sản phẩm</h3></div>
         <div class="overflow-x-auto max-h-[60vh]">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-slate-50 text-xs uppercase text-slate-600 sticky top-0">
                     <tr>
-                        <th class="px-3 py-3 text-left font-semibold">ID đơn hàng</th>
-                        <th class="px-3 py-3 text-left font-semibold">Tên sản phẩm</th>
-                        <th class="px-3 py-3 text-left font-semibold">Trạng thái</th>
-                        <th class="px-3 py-3 text-left font-semibold">Doanh thu</th>
-                        <th class="px-3 py-3 text-left font-semibold">Giá vốn</th>
-                        <th class="px-3 py-3 text-left font-semibold">Lãi gộp</th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('videoName')">
+                            Video / Sản phẩm
+                            @if(detailSortKey() === 'videoName') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('revenue')">
+                            Doanh thu
+                            @if(detailSortKey() === 'revenue') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('cost')">
+                            Chi phí
+                             @if(detailSortKey() === 'cost') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('returnCount')">
+                            Hoàn/Hủy
+                             @if(detailSortKey() === 'returnCount') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('commission')">
+                            Hoa hồng
+                             @if(detailSortKey() === 'commission') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('roi')">
+                            ROI
+                             @if(detailSortKey() === 'roi') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
+                        <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200" (click)="onDetailSort('cir')">
+                            CIR
+                             @if(detailSortKey() === 'cir') {
+                                <span>{{ detailSortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                            }
+                        </th>
                     </tr>
                 </thead>
                  <tbody class="bg-white divide-y divide-gray-200 text-sm">
-                    @for(order of selectedKocOrders(); track order.order_id) {
-                        <tr [class.bg-red-50]="isFailedOrder(order)">
-                            <td class="px-3 py-4 whitespace-nowrap font-mono text-gray-500">{{order.order_id}}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-gray-800">{{order.product_name}}</td>
-                            <td class="px-3 py-4 whitespace-nowrap" [class]="isFailedOrder(order) ? 'text-red-600 font-medium' : 'text-gray-500'">{{order.status}}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{order.revenue | number:'1.0-0'}} đ</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{order.cogs | number:'1.0-0'}} đ</td>
-                            <td class="px-3 py-4 whitespace-nowrap font-semibold" [class]="order.grossProfit > 0 ? 'text-green-600' : 'text-red-600'">{{order.grossProfit | number:'1.0-0'}} đ</td>
+                    @for(detail of sortedKocDetails(); track detail.videoId) {
+                        <tr>
+                            <td class="px-3 py-4 whitespace-nowrap">
+                                <p class="font-medium text-gray-800 truncate" [title]="detail.videoName">{{ detail.videoName }}</p>
+                                <p class="text-xs text-gray-500 font-mono">{{ detail.videoId }}</p>
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-800 font-semibold">{{detail.revenue | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{detail.cost | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{detail.returnCount | number:'1.0-0'}}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{detail.commission | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap font-semibold" [class]="detail.roi > 2 ? 'text-green-600' : 'text-gray-700'">{{detail.roi | number:'1.2-2'}}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{detail.cir | number:'1.1-1'}}%</td>
                         </tr>
                     } @empty {
                         <tr>
-                            <td colspan="6" class="text-center py-10 text-gray-500">Không có đơn hàng nào cho KOC này.</td>
+                            <td colspan="7" class="text-center py-10 text-gray-500">Không có dữ liệu chi tiết cho KOC này.</td>
                         </tr>
                     }
                  </tbody>

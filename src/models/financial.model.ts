@@ -50,4 +50,18 @@ export interface EnrichedOrderData {
   revenue: number;
   cogs: number;
   grossProfit: number;
+  videoId: string;
+  commission: number;
+}
+
+export interface KocDetailItem {
+  videoId: string;
+  videoName: string;
+  productName: string;
+  revenue: number;
+  cost: number;
+  returnCount: number;
+  commission: number;
+  roi: number;
+  cir: number;
 }

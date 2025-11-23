@@ -70,23 +70,25 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tên KOC</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Chi phí Ads</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">GMV (Ads báo)</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">NMV (Thực tế)</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">% Hoàn/Hủy</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Lợi Nhuận Ròng</th>
+                        <th (click)="onSort('kocName')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tên KOC @if(sortKey() === 'kocName') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('adsCost')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Chi phí Ads @if(sortKey() === 'adsCost') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('adsGmv')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">GMV (Ads báo) @if(sortKey() === 'adsGmv') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('totalGmv')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">GMV (Thực) @if(sortKey() === 'totalGmv') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('nmv')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">NMV (Thực tế) @if(sortKey() === 'nmv') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('failedOrders')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Hoàn/Hủy @if(sortKey() === 'failedOrders') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
+                        <th (click)="onSort('netProfit')" class="cursor-pointer hover:bg-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Lợi Nhuận Ròng @if(sortKey() === 'netProfit') {<span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>}</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Đánh giá</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @for(koc of kocPnlData(); track koc.kocName) {
+                    @for(koc of sortedKocPnlData(); track koc.kocName) {
                         <tr class="hover:bg-slate-50" [class]="koc.netProfit < 0 ? 'bg-red-50' : ''">
                             <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{koc.kocName}}</td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.adsCost | number:'1.0-0'}} đ</td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.adsGmv | number:'1.0-0'}} đ</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.totalGmv | number:'1.0-0'}} đ</td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{{koc.nmv | number:'1.0-0'}} đ</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.returnRate | number:'1.1-1'}}%</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{koc.failedOrders | number:'1.0-0'}} ({{koc.returnCancelPercent | number:'1.1-1'}}%)</td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm font-bold" [class]="koc.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{koc.netProfit | number:'1.0-0'}} đ</td>
                             <td class="px-4 py-4 whitespace-nowrap text-lg">
                                 @if (koc.netProfit > 0) { <span>✅</span> } @else { <span>💀</span> }
