@@ -1,60 +1,180 @@
-<div class="space-y-8">
-  <div>
-    <h2 class="text-2xl font-bold text-gray-900">🏆 GOD MODE - Master P&L Table</h2>
-    <p class="mt-1 text-sm text-gray-500">Bảng phân tích Lợi nhuận & Lỗ (P&L) thực tế của từng KOC sau khi hợp nhất dữ liệu Ads, Orders và Inventory.</p>
+<div class="p-6 bg-gray-50 min-h-screen">
+  
+  @let summary = summary();
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+    <h2 class="text-gray-500 font-bold text-xs uppercase tracking-wide mb-3">Sức Khỏe Dòng Tiền (P&L Overview)</h2>
+    <div class="grid grid-cols-5 gap-4 text-center divide-x">
+      <div>
+        <div class="text-xs text-gray-400">Doanh Thu (GMV)</div>
+        <div class="text-lg font-bold text-gray-800">{{ summary.totalRevenue | number }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400">Thực Thu (NMV)</div>
+        <div class="text-lg font-bold text-blue-600">{{ summary.totalNMV | number }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400">Tổng Chi Phí Ads</div>
+        <div class="text-lg font-bold text-red-500">{{ summary.totalAdsCost | number }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400">Tổng Giá Vốn</div>
+        <div class="text-lg font-bold text-gray-600">{{ summary.totalCOGS | number }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400">Lợi Nhuận Ròng</div>
+        <div class="text-xl font-black" 
+             [class.text-green-600]="summary.totalNetProfit > 0" 
+             [class.text-red-600]="summary.totalNetProfit < 0">
+          {{ summary.totalNetProfit | number }}
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden flex">
+      <div class="bg-red-400 h-full" [style.width.%]="(summary.totalAdsCost / summary.totalNMV) * 100" title="Ads Cost"></div>
+      <div class="bg-gray-400 h-full" [style.width.%]="(summary.totalCOGS / summary.totalNMV) * 100" title="COGS"></div>
+      <div class="bg-green-500 h-full flex-1" title="Profit"></div>
+    </div>
   </div>
-  <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
-    <table class="min-w-full text-sm border-collapse">
-      <thead class="bg-gray-100 text-gray-700 sticky top-0">
+
+  @let bcgGroups = bcgGroups();
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div (click)="filterBcg('STAR')" 
+         class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
+         [class.ring-2]="activeBcgFilter() === 'STAR'" [class.ring-yellow-400]="activeBcgFilter() === 'STAR'">
+      <div class="text-2xl mb-1">⭐ NGÔI SAO</div>
+      <div class="text-xs text-gray-500 mb-2">Lãi Cao - Doanh số Cao</div>
+      <div class="font-bold text-xl">{{ bcgGroups.STAR?.length || 0 }} KOC</div>
+      <div class="absolute -right-4 -bottom-4 text-6xl opacity-10">★</div>
+    </div>
+    
+    <div (click)="filterBcg('COW')" class="bg-green-50 border border-green-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
+         [class.ring-2]="activeBcgFilter() === 'COW'" [class.ring-green-400]="activeBcgFilter() === 'COW'">
+      <div class="text-2xl mb-1">🐮 BÒ SỮA</div>
+      <div class="text-xs text-gray-500 mb-2">Lãi Thấp - Doanh số Cao</div>
+      <div class="font-bold text-xl">{{ bcgGroups.COW?.length || 0 }} KOC</div>
+    </div>
+
+    <div (click)="filterBcg('QUESTION')" class="bg-blue-50 border border-blue-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
+         [class.ring-2]="activeBcgFilter() === 'QUESTION'" [class.ring-blue-400]="activeBcgFilter() === 'QUESTION'">
+      <div class="text-2xl mb-1">❓ DẤU HỎI</div>
+      <div class="text-xs text-gray-500 mb-2">Lãi Cao - Doanh số Thấp</div>
+      <div class="font-bold text-xl">{{ bcgGroups.QUESTION?.length || 0 }} KOC</div>
+    </div>
+
+    <div (click)="filterBcg('DOG')" class="bg-gray-100 border border-gray-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
+         [class.ring-2]="activeBcgFilter() === 'DOG'" [class.ring-gray-400]="activeBcgFilter() === 'DOG'">
+      <div class="text-2xl mb-1">🐕 CHÓ MỰC</div>
+      <div class="text-xs text-gray-500 mb-2">Lỗ/Lãi Thấp - Doanh số Thấp</div>
+      <div class="font-bold text-xl">{{ bcgGroups.DOG?.length || 0 }} KOC</div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm text-left">
+      <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
         <tr>
-          <th class="p-3 text-left">KOC</th>
-          <th class="p-3 bg-red-50 text-red-700 cursor-pointer" (click)="sort('adsCost')">
-            🔴 Chi Phí Ads ⇅
-          </th>
-          <th class="p-3 text-gray-600 cursor-pointer" (click)="sort('cogs')">
-            📦 Giá Vốn ⇅
-          </th>
-          <th class="p-3 text-gray-600">
-            💸 Hoa Hồng
-          </th>
-          <th class="p-3 bg-blue-50 text-blue-700 cursor-pointer" (click)="sort('nmv')">
-            🟢 NMV (Thực Thu) ⇅
-          </th>
-          <th class="p-3 text-center cursor-pointer" (click)="sort('realRoas')">
-            🚀 ROAS Thực ⇅
-          </th>
-          <th class="p-3 bg-green-50 text-green-800 cursor-pointer" (click)="sort('netProfit')">
-            💰 Lợi Nhuận Ròng ⇅
-          </th>
+          <th class="p-3">KOC</th>
+          <th class="p-3 cursor-pointer" (click)="sortBy('adsCost')">🔴 ADS COST ⇅</th>
+          <th class="p-3 cursor-pointer" (click)="sortBy('gmv')">🔵 GMV ⇅</th>
+          <th class="p-3 cursor-pointer" (click)="sortBy('nmv')">🟢 NMV (THỰC) ⇅</th>
+          <th class="p-3 cursor-pointer" (click)="sortBy('cogs')">📦 GIÁ VỐN ⇅</th>
+          <th class="p-3 cursor-pointer" (click)="sortBy('netProfit')">💰 LỢI NHUẬN ⇅</th>
+          <th class="p-3">HÀNH ĐỘNG</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y">
         @for (item of sortedData(); track item.mergeKey) {
-          <tr class="border-b hover:bg-gray-50">
-            <td class="p-3 font-medium">{{ item.kocName }}</td>
-            <td class="p-3 font-bold text-red-600">{{ item.adsCost | number }}</td>
-            <td class="p-3 text-gray-500">{{ item.cogs | number }}</td>
-            <td class="p-3 text-gray-500">{{ item.commission | number }}</td>
-            <td class="p-3 font-bold text-blue-600">{{ item.nmv | number }}</td>
-            <td class="p-3 text-center">
-              <span class="px-2 py-1 rounded font-bold" 
-                    [class.bg-green-100]="item.realRoas > 3" 
-                    [class.bg-red-100]="item.realRoas < 2">
-                {{ item.realRoas | number:'1.1-2' }}
-              </span>
+          <tr class="hover:bg-gray-50 cursor-pointer transition-colors" 
+              [class.bg-blue-50]="selectedKoc() === item"
+              (click)="selectKoc(item)">
+            <td class="p-3 font-medium text-blue-700 flex items-center gap-2">
+              @if (selectedKoc() === item) {
+                <span>▼</span>
+              } @else {
+                <span>▶</span>
+              }
+              {{ item.kocName }}
             </td>
-            <td class="p-3 font-bold text-lg" 
+            <td class="p-3 text-red-600">{{ item.adsCost | number }}</td>
+            <td class="p-3 text-gray-500">{{ item.gmv | number }}</td>
+            <td class="p-3 font-bold text-blue-600">{{ item.nmv | number }}</td>
+            <td class="p-3 text-gray-500">{{ item.cogs | number }}</td>
+            <td class="p-3 font-bold text-base" 
                 [class.text-green-600]="item.netProfit > 0" 
-                [class.text-red-600]="item.netProfit <= 0">
+                [class.text-red-600]="item.netProfit < 0">
               {{ item.netProfit | number }}
             </td>
-          </tr>
-        } @empty {
-           <tr>
-            <td colspan="7" class="text-center p-8 text-gray-500">
-              Không có dữ liệu P&L để hiển thị. <br/> Vui lòng tải lên file Ads, file Đơn hàng, và file Tồn kho.
+            <td class="p-3">
+              <span class="px-2 py-1 rounded text-xs font-bold"
+                    [class.bg-yellow-100]="item.bcgLabel === 'STAR'"
+                    [class.bg-green-100]="item.bcgLabel === 'COW'"
+                    [class.bg-blue-100]="item.bcgLabel === 'QUESTION'"
+                    [class.bg-gray-100]="item.bcgLabel === 'DOG'">
+                {{ item.bcgLabel }}
+              </span>
             </td>
           </tr>
+
+          @if (selectedKoc() === item) {
+            <tr class="bg-gray-50">
+              <td colspan="7" class="p-4">
+                <div class="mb-2 font-bold text-gray-700">Chi tiết sản phẩm & Video của {{ item.kocName }}:</div>
+                <div class="max-h-96 overflow-y-auto">
+                    <table class="w-full bg-white border text-xs rounded overflow-hidden">
+                      <thead class="bg-blue-100 sticky top-0">
+                        <tr>
+                          <th class="p-2">Video ID / Link</th>
+                          <th class="p-2">Sản Phẩm</th>
+                          <th class="p-2 text-right">Giá Bán</th>
+                          <th class="p-2 text-right">Giá Vốn</th>
+                          <th class="p-2 text-right">Hoa Hồng</th>
+                          <th class="p-2 text-right">Lãi Gộp Đơn</th>
+                          <th class="p-2 text-center">Trạng Thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (detail of kocDetails(); track detail.orderId) {
+                          <tr class="border-b">
+                            <td class="p-2 font-mono">
+                              @if(detail.videoId && detail.videoId !== 'N/A') {
+                                <a [href]="'https://tiktok.com/@'+item.kocName+'/video/'+detail.videoId" target="_blank" class="text-blue-500 hover:underline">
+                                  {{ detail.videoId }} 🔗
+                                </a>
+                              } @else {
+                                <span>N/A</span>
+                              }
+                            </td>
+                            <td class="p-2 max-w-xs truncate" [title]="detail.productName">{{ detail.productName }}</td>
+                            <td class="p-2 text-right">{{ detail.revenue | number }}</td>
+                            <td class="p-2 text-right text-gray-500">{{ detail.cogs | number }}</td>
+                            <td class="p-2 text-right text-gray-500">{{ detail.commission | number }}</td>
+                            <td class="p-2 text-right font-bold" [class.text-green-600]="detail.profit > 0">{{ detail.profit | number }}</td>
+                            <td class="p-2 text-center">
+                              @if (detail.isReturn) {
+                                <span class="text-red-500 font-bold">HOÀN/HỦY</span>
+                              } @else {
+                                <span class="text-green-500">Thành công</span>
+                              }
+                            </td>
+                          </tr>
+                        } @empty {
+                          <tr>
+                            <td colspan="7" class="p-4 text-center text-gray-500">Không có chi tiết đơn hàng cho KOC này.</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                </div>
+              </td>
+            </tr>
+          }
+        } @empty {
+            <tr>
+              <td colspan="7" class="text-center p-8 text-gray-500">
+                Không có dữ liệu P&L để hiển thị. <br/> Vui lòng tải lên file Ads, file Đơn hàng, và file Tồn kho.
+              </td>
+            </tr>
         }
       </tbody>
     </table>

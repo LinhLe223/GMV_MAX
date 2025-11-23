@@ -1,5 +1,6 @@
 
 
+
 export interface OrderData {
   order_id: string;
   koc_username: string;
@@ -119,7 +120,7 @@ export interface GodModeItem {
   kocName: string;
   mergeKey: string;
   adsCost: number;
-  adsGmv: number;
+  gmv: number;
   nmv: number;
   commission: number;
   totalOrders: number;
@@ -128,4 +129,18 @@ export interface GodModeItem {
   netProfit: number;
   realRoas: number;
   returnRate: number;
+  bcgLabel?: 'STAR' | 'COW' | 'QUESTION' | 'DOG';
+}
+
+export interface KocOrderItemDetail {
+  orderId: string;
+  productName: string;
+  sku: string;
+  videoId?: string;
+  revenue: number;
+  cogs: number;
+  commission: number;
+  profit: number;
+  status: string;
+  isReturn: boolean;
 }
