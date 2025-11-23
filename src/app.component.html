@@ -1,0 +1,117 @@
+
+
+@if (!authService.isLoggedIn() && !authService.isTrialMode()) {
+  <app-login></app-login>
+} @else {
+  @switch (appState()) {
+    @case ('initial') {
+      <div class="flex items-center justify-center h-screen bg-slate-50">
+        <app-uploader-hub></app-uploader-hub>
+      </div>
+    }
+    @case ('ads_only') {
+      <div class="flex h-screen bg-white">
+        <app-sidebar [currentView]="currentView()" (viewChange)="onViewChange($event)"></app-sidebar>
+
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            @switch (currentView()) {
+              @case ('overview') {
+                <app-overview></app-overview>
+              }
+              @case ('god-mode') {
+                <app-god-mode></app-god-mode>
+              }
+              @case ('product-report') {
+                  <app-product-report></app-product-report>
+              }
+              @case ('koc-report') {
+                <app-koc-report></app-koc-report>
+              }
+              @case ('video-report') {
+                <app-video-report></app-video-report>
+              }
+              @case ('deep-dive') {
+                <app-deep-dive></app-deep-dive>
+              }
+              @case ('charts-report') {
+                <app-charts-report></app-charts-report>
+              }
+              @case ('pnl-report') {
+                <app-pnl-report></app-pnl-report>
+              }
+              @case ('chatbot') {
+                <app-chatbot></app-chatbot>
+              }
+              @case ('admin-panel') {
+                <app-admin-panel></app-admin-panel>
+              }
+              @case ('ai-advisor') {
+                <app-ai-advisor></app-ai-advisor>
+              }
+              @case ('action-plan') {
+                <app-action-plan></app-action-plan>
+              }
+              @case ('activity-history') {
+                <app-activity-history></app-activity-history>
+              }
+              @default {
+                <app-overview></app-overview>
+              }
+            }
+        </main>
+      </div>
+    }
+    @default {
+      <div class="flex h-screen bg-white">
+        <app-sidebar [currentView]="currentView()" (viewChange)="onViewChange($event)"></app-sidebar>
+
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            @switch (currentView()) {
+              @case ('overview') {
+                <app-overview></app-overview>
+              }
+              @case ('god-mode') {
+                <app-god-mode></app-god-mode>
+              }
+              @case ('product-report') {
+                  <app-product-report></app-product-report>
+              }
+              @case ('koc-report') {
+                <app-koc-report></app-koc-report>
+              }
+              @case ('video-report') {
+                <app-video-report></app-video-report>
+              }
+              @case ('deep-dive') {
+                <app-deep-dive></app-deep-dive>
+              }
+              @case ('charts-report') {
+                <app-charts-report></app-charts-report>
+              }
+              @case ('pnl-report') {
+                <app-pnl-report></app-pnl-report>
+              }
+              @case ('chatbot') {
+                <app-chatbot></app-chatbot>
+              }
+              @case ('admin-panel') {
+                <app-admin-panel></app-admin-panel>
+              }
+              @case ('ai-advisor') {
+                <app-ai-advisor></app-ai-advisor>
+              }
+              @case ('action-plan') {
+                <app-action-plan></app-action-plan>
+              }
+              @case ('activity-history') {
+                <app-activity-history></app-activity-history>
+              }
+              @default {
+                <app-overview></app-overview>
+              }
+            }
+        </main>
+      </div>
+    }
+  }
+}

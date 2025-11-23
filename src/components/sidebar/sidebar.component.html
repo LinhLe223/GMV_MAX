@@ -1,0 +1,60 @@
+<aside class="w-64 flex-shrink-0 bg-slate-100 flex flex-col">
+  <div class="h-16 flex items-center justify-center px-4">
+    <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">GMV Max</h1>
+  </div>
+  <div class="px-4 py-2 space-y-2">
+    @if(financialsService.unmappedKocs().length > 0; as count) {
+      <div class="p-3 rounded-lg bg-yellow-100 border border-yellow-300">
+        <p class="text-sm font-semibold text-yellow-800">⚠️ Cảnh báo</p>
+        <p class="text-xs text-yellow-700 mt-1">
+          Có <span class="font-bold">{{ financialsService.unmappedKocs().length }}</span> KOC có GMV cao bên Ads nhưng không tìm thấy trong file Đơn hàng. Cần kiểm tra lại tên KOC để đảm bảo dữ liệu chính xác.
+        </p>
+      </div>
+    }
+  </div>
+  <nav class="flex-1 px-4 py-2 space-y-2 overflow-y-auto">
+    @for(item of menuItems(); track item.id) {
+      <a
+        href="javascript:void(0)"
+        (click)="changeView(item.id)"
+        [class]="'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ' + (currentView() === item.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-700 hover:bg-slate-200/60')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" 
+             [class]="'mr-3 h-6 w-6 ' + (currentView() === item.id ? 'text-indigo-500' : 'text-gray-500 group-hover:text-gray-600')">
+            <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon" />
+        </svg>
+        {{ item.name }}
+      </a>
+    }
+  </nav>
+  <div class="px-4 py-4 border-t border-slate-200">
+      @if(authService.isLoggedIn() && authService.currentUser(); as user) {
+        <div class="text-xs text-gray-600 space-y-1">
+          <p class="font-medium text-gray-800 truncate" [title]="user.username">Xin chào, {{ user.username }}</p>
+          <p>
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  [class]="user.vip_level === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-yellow-100 text-yellow-800'">
+              VIP: {{ user.vip_level }}
+            </span>
+          </p>
+          <p>Lượt dùng AI: <span class="font-bold text-indigo-600">{{ remainingUsage() === Infinity ? 'Không giới hạn' : remainingUsage() }}</span></p>
+          <p>Lượt tải file: <span class="font-bold text-indigo-600">{{ user.files_uploaded_today }} / {{ user.vip_level === 'admin' ? '∞' : ({member:1, vip1:3, vip2:5}[user.vip_level]) }}</span></p>
+        </div>
+      } @else if(authService.isTrialMode()) {
+        <div class="text-xs text-gray-500 space-y-1">
+          <p class="font-medium text-gray-700">Chế độ Dùng thử</p>
+          <p>Lượt dùng còn lại: <span class="font-bold text-indigo-600">{{ trialUsage().remaining }} / {{ trialUsage().limit }}</span></p>
+        </div>
+      }
+      
+      @if(dataService.fileName()) {
+        <div class="mt-2 text-xs text-gray-500 space-y-1">
+            <p class="truncate" title="{{ dataService.fileName() }}">File Ads: {{ dataService.fileName() }}</p>
+        </div>
+      }
+
+      <button (click)="logout()" class="mt-3 w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-slate-800 bg-slate-200 hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400">
+        {{ authService.isTrialMode() ? 'Kết thúc Dùng thử' : 'Đăng xuất' }}
+      </button>
+  </div>
+</aside>

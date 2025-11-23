@@ -1,0 +1,119 @@
+
+
+<div class="w-full max-w-4xl mx-auto">
+  <div class="text-center mb-8">
+    <h2 class="text-3xl font-bold text-gray-900">🚀 Trung tâm Tải liệu</h2>
+    <p class="mt-2 text-sm text-gray-500">Tải lên các file dữ liệu của bạn để kích hoạt các chế độ phân tích.</p>
+  </div>
+  
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Ads File Uploader -->
+    <div class="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm text-center flex flex-col justify-between">
+        <div>
+            <h3 class="font-semibold text-gray-800">1. File Quảng cáo (Bắt buộc)</h3>
+            <p class="text-xs text-gray-500 mt-1">Mở khóa Dashboard GMV Max.</p>
+            <label for="ads-file-upload" class="mt-4 cursor-pointer inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
+                <span>Chọn file Ads</span>
+                <input id="ads-file-upload" type="file" class="sr-only" (change)="handleFile('ads', $event.target.files[0])" accept=".csv, .xlsx, .xls">
+            </label>
+        </div>
+        @if(adsFile()) { <p class="mt-2 text-xs text-green-600 truncate" [title]="adsFile().name">✅ {{ adsFile().name }}</p> }
+    </div>
+
+    <!-- Order File Uploader -->
+    <div class="p-4 rounded-2xl border shadow-sm text-center flex flex-col justify-between" [class]="adsFile() ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-300'">
+        <div>
+            <h3 class="font-semibold" [class]="adsFile() ? 'text-gray-800' : 'text-gray-400'">2. File Đơn hàng</h3>
+            <p class="text-xs mt-1" [class]="adsFile() ? 'text-gray-500' : 'text-gray-400'">Mở khóa GOD MODE.</p>
+            <label for="order-file-upload" [class.cursor-pointer]="adsFile()" [class.cursor-not-allowed]="!adsFile()" class="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium" [class]="adsFile() ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-gray-200 text-gray-400'">
+                <span>Chọn file Đơn hàng</span>
+                <input id="order-file-upload" type="file" class="sr-only" (change)="handleFile('order', $event.target.files[0])" [disabled]="!adsFile()" accept=".csv, .xlsx, .xls">
+            </label>
+        </div>
+        @if(orderFile()) { <p class="mt-2 text-xs text-green-600 truncate" [title]="orderFile().name">✅ {{ orderFile().name }}</p> }
+    </div>
+
+    <!-- Inventory File Uploader -->
+    <div class="p-4 rounded-2xl border shadow-sm text-center flex flex-col justify-between" [class]="adsFile() ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-300'">
+       <div>
+            <h3 class="font-semibold" [class]="adsFile() ? 'text-gray-800' : 'text-gray-400'">3. File Tồn kho</h3>
+            <p class="text-xs mt-1" [class]="adsFile() ? 'text-gray-500' : 'text-gray-400'">Mở khóa GOD MODE.</p>
+            <label for="inventory-file-upload" [class.cursor-pointer]="adsFile()" [class.cursor-not-allowed]="!adsFile()" class="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium" [class]="adsFile() ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-gray-200 text-gray-400'">
+                <span>Chọn file Kho</span>
+                <input id="inventory-file-upload" type="file" class="sr-only" (change)="handleFile('inventory', $event.target.files[0])" [disabled]="!adsFile()" accept=".csv, .xlsx, .xls">
+            </label>
+       </div>
+        @if(inventoryFile()) { <p class="mt-2 text-xs text-green-600 truncate" [title]="inventoryFile().name">✅ {{ inventoryFile().name }}</p> }
+    </div>
+  </div>
+
+  <div class="mt-8 text-center">
+    <button (click)="processFiles()" [disabled]="!adsFile() || isLoading()" class="inline-flex items-center rounded-full border border-transparent bg-indigo-600 px-8 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-lg">
+       @if(isLoading()) {
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          <span>Đang xử lý...</span>
+      } @else {
+          <span>PHÂN TÍCH NGAY</span>
+      }
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="mt-6 max-w-3xl mx-auto p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" /></svg>
+        </div>
+        <div class="ml-3 flex-1">
+          <h3 class="text-sm font-semibold text-red-800">Lỗi Xử lý Dữ liệu</h3>
+          <p class="text-sm mt-1">{{ error() }}</p>
+          
+          <details class="mt-3 text-left">
+            <summary class="text-xs font-semibold cursor-pointer text-red-800 hover:text-red-900">🔍 Tại sao số liệu bằng 0?</summary>
+            <div class="mt-2 p-3 bg-red-100/50 rounded text-xs space-y-2 text-red-900">
+               @if(financialsService.pnlDebugStats(); as stats) {
+                  @let successRate = stats.totalOrders > 0 ? (stats.cogsFoundCount / stats.totalOrders) * 100 : 0;
+                  <p><strong>Tổng số đơn hàng:</strong> {{ stats.totalOrders | number }}</p>
+                  <p><strong>Số đơn tìm thấy giá vốn:</strong> {{ stats.cogsFoundCount | number }} ({{ successRate | number:'1.0-1' }}%)</p>
+                  @if (successRate < 70 && stats.totalOrders > 0) {
+                    <p class="font-bold">⚠️ Cảnh báo: Tỷ lệ tìm thấy giá vốn thấp. Có thể tên sản phẩm hoặc SKU trong file Tồn Kho và file Đơn hàng không khớp nhau.</p>
+                  }
+               }
+               @if(financialsService.unmappedKocs().length > 0) {
+                  <div>
+                    <p><strong>Các KOC có trong file Ads nhưng không tìm thấy trong file Đơn hàng:</strong></p>
+                    <p class="font-mono text-xs pl-2">{{ unmappedKocsString() }}</p>
+                  </div>
+               }
+                @if(financialsService.notFoundSkus().length > 0) {
+                  <div>
+                    <p><strong>Các SKU không tìm thấy giá vốn:</strong></p>
+                    <p class="font-mono text-xs pl-2">{{ notFoundSkusString() }}</p>
+                  </div>
+               }
+               @if(errorDetails(); as details) {
+                <div class="mt-2 text-xs text-red-700 space-y-1">
+                  @if(details.orderFileColumns) {
+                    <p><span class="font-semibold">Các cột tìm thấy trong file Đơn hàng:</span> [{{ details.orderFileColumns.join(', ') }}]</p>
+                  }
+                   @if(details.inventoryFileColumns) {
+                    <p><span class="font-semibold">Các cột tìm thấy trong file Tồn kho:</span> [{{ details.inventoryFileColumns.join(', ') }}]</p>
+                  }
+                </div>
+               }
+            </div>
+          </details>
+
+           <div class="mt-4">
+            <p class="text-sm font-medium text-red-800">Để khắc phục, hãy kiểm tra lại file của bạn hoặc tải file mẫu:</p>
+            <div class="mt-2 flex gap-x-4">
+              <button (click)="downloadSample('ads')" class="text-xs font-medium text-indigo-600 hover:text-indigo-500">Tải file mẫu Ads</button>
+              <button (click)="downloadSample('order')" class="text-xs font-medium text-indigo-600 hover:text-indigo-500">Tải file mẫu Đơn hàng</button>
+              <button (click)="downloadSample('inventory')" class="text-xs font-medium text-indigo-600 hover:text-indigo-500">Tải file mẫu Kho</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

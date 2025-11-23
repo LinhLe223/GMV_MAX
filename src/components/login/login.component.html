@@ -1,0 +1,113 @@
+<div class="flex min-h-screen items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="w-full max-w-md space-y-8">
+    <div>
+       <h1 class="text-center text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">GMV Max</h1>
+      <h2 class="mt-2 text-center text-2xl font-bold tracking-tight text-gray-900">
+        {{ activeTab() === 'login' ? 'Đăng nhập tài khoản' : 'Đăng ký tài khoản mới' }}
+      </h2>
+    </div>
+
+    <div class="bg-white p-2 sm:p-4 rounded-2xl shadow-lg border border-gray-200">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-4 justify-center" aria-label="Tabs">
+                <button (click)="setTab('login')" [class]="'w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm ' + (activeTab() === 'login' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+                    Đăng nhập
+                </button>
+                <button (click)="setTab('signup')" [class]="'w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm ' + (activeTab() === 'signup' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+                    Đăng ký
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-4 sm:p-6">
+            @if (activeTab() === 'login') {
+                @if (registrationSuccess()) {
+                    <div class="rounded-md bg-green-50 p-4 mb-4">
+                        <p class="text-sm text-green-700">{{ registrationSuccess() }}</p>
+                    </div>
+                }
+                <form class="space-y-6" (submit)="$event.preventDefault(); login()">
+                    <div class="space-y-4 rounded-md">
+                        <div>
+                            <label for="username" class="sr-only">Tên đăng nhập</label>
+                            <input id="username" name="username" type="text" autocomplete="username" required [value]="username()" (input)="username.set($event.target.value)" class="relative block w-full appearance-none rounded-lg border-transparent bg-slate-100 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm" placeholder="Tên đăng nhập (Email)">
+                        </div>
+                        <div>
+                            <label for="password" class="sr-only">Mật khẩu</label>
+                            <input id="password" name="password" type="password" autocomplete="current-password" required [value]="password()" (input)="password.set($event.target.value)" class="relative block w-full appearance-none rounded-lg border-transparent bg-slate-100 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm" placeholder="Mật khẩu">
+                        </div>
+                    </div>
+                    
+                    <div class="text-right text-sm">
+                        <a href="javascript:void(0)" (click)="showForgotPasswordInfo.set(true)" class="font-medium text-indigo-600 hover:text-indigo-500">Quên mật khẩu?</a>
+                    </div>
+                    
+                    @if(showForgotPasswordInfo()) {
+                        <div class="rounded-md bg-blue-50 p-4">
+                            <p class="text-sm text-blue-700">Để cấp lại mật khẩu, vui lòng liên hệ Admin qua Zalo: <a href="https://zalo.me/0368293772" target="_blank" class="font-bold underline">Bấm để chat</a>. Admin sẽ hỗ trợ ngay lập tức.</p>
+                        </div>
+                    }
+
+                    @if(authService.authError()) {
+                        <div class="text-sm text-red-600">{{ authService.authError() }}</div>
+                    }
+
+                    <div>
+                        <button type="submit" [disabled]="isLoading() || !username() || !password()" class="group relative flex w-full justify-center rounded-full border border-transparent bg-indigo-600 py-2.5 px-4 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-lg">
+                            @if (isLoading()) {
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            } @else {
+                                Đăng nhập
+                            }
+                        </button>
+                    </div>
+                </form>
+            } @else {
+                 <form class="space-y-6" (submit)="$event.preventDefault(); register()">
+                    <div class="space-y-4 rounded-md">
+                        <div>
+                            <label for="new-username" class="sr-only">Email</label>
+                            <input id="new-username" type="email" required [value]="newUsername()" (input)="newUsername.set($event.target.value)" class="relative block w-full appearance-none rounded-lg border-transparent bg-slate-100 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm" placeholder="Email của bạn">
+                        </div>
+                        <div>
+                            <label for="new-password" class="sr-only">Mật khẩu</label>
+                            <input id="new-password" type="password" required [value]="newPassword()" (input)="newPassword.set($event.target.value)" class="relative block w-full appearance-none rounded-lg border-transparent bg-slate-100 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm" placeholder="Mật khẩu">
+                        </div>
+                         <div>
+                            <label for="confirm-password" class="sr-only">Nhập lại mật khẩu</label>
+                            <input id="confirm-password" type="password" required [value]="confirmPassword()" (input)="confirmPassword.set($event.target.value)" class="relative block w-full appearance-none rounded-lg border-transparent bg-slate-100 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm" placeholder="Nhập lại mật khẩu">
+                        </div>
+                    </div>
+                    
+                    @if(registrationError()) {
+                        <div class="text-sm text-red-600">{{ registrationError() }}</div>
+                    }
+
+                    <div>
+                        <button type="submit" [disabled]="isRegistering() || !newUsername() || !newPassword()" class="group relative flex w-full justify-center rounded-full border border-transparent bg-green-600 py-2.5 px-4 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-green-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-lg">
+                             @if (isRegistering()) {
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            } @else {
+                                Đăng ký
+                            }
+                        </button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+    <div class="relative">
+      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+        <div class="w-full border-t border-gray-300"></div>
+      </div>
+      <div class="relative flex justify-center">
+        <span class="bg-slate-50 px-2 text-sm text-gray-500">Hoặc</span>
+      </div>
+    </div>
+    <div>
+        <button (click)="startTrial()" type="button" class="group relative flex w-full justify-center rounded-full border border-transparent bg-slate-800 py-3 px-4 text-sm font-medium text-white hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all hover:-translate-y-px hover:shadow-lg">
+           🚀 Dùng Thử Miễn Phí (Không cần đăng nhập)
+        </button>
+    </div>
+  </div>
+</div>

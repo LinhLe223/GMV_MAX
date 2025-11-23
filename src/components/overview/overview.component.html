@@ -1,0 +1,43 @@
+<div class="space-y-8">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">📊 Dashboard Tổng quan</h2>
+    <p class="mt-1 text-sm text-gray-500">Các chỉ số hiệu suất chính từ dữ liệu đã tải lên.</p>
+  </div>
+
+  <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+    <app-ai-analyzer [promptKey]="aiPromptKey" [data]="aiData()"></app-ai-analyzer>
+  </div>
+
+  <!-- Scorecards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    @for(metric of scorecardMetrics(); track metric.label) {
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <p class="text-sm font-medium text-gray-500">{{ metric.label }}</p>
+        <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">
+          {{ metric.value | number:metric.format }}{{ metric.unit }}
+        </p>
+      </div>
+    }
+  </div>
+
+  <!-- Top Products Chart -->
+  <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+    <h3 class="text-lg font-medium leading-6 text-gray-900">Top 10 Sản phẩm theo Doanh thu (GMV)</h3>
+    <div class="mt-6 space-y-4">
+      @for(product of stats().topProducts; track product.productId) {
+        <div class="grid grid-cols-12 items-center gap-x-4">
+          <div class="col-span-4 text-sm text-gray-600 truncate" title="{{product.productId}}">ID: {{ product.productId }}</div>
+          <div class="col-span-6">
+            <div class="bg-gray-100 rounded-full h-4">
+              <div class="bg-indigo-600 h-4 rounded-full" [style.width.%]="(product.gmv / maxGmv()) * 100"></div>
+            </div>
+          </div>
+          <div class="col-span-2 text-sm font-medium text-gray-700 text-right">{{ product.gmv | number:'1.0-0' }}</div>
+        </div>
+      }
+      @if(stats().topProducts.length === 0) {
+        <p class="text-sm text-gray-500">Không có dữ liệu sản phẩm để hiển thị.</p>
+      }
+    </div>
+  </div>
+</div>

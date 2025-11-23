@@ -1,0 +1,59 @@
+<div>
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div class="flex items-center gap-x-3">
+      <button
+        (click)="analyze()"
+        [disabled]="isLoading()"
+        class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-md">
+        @if (isLoading()) {
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Đang phân tích...</span>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.256 9a1 1 0 010 1.8l-3.11 1.054-1.178 4.455a1 1 0 01-1.933 0L9.854 11.854 6.744 10.8a1 1 0 010-1.8l3.11-1.054L11.033 2.744A1 1 0 0112 2z" clip-rule="evenodd" />
+          </svg>
+          <span>Phân tích & Đánh giá (AI)</span>
+        }
+      </button>
+
+      <div class="flex items-center space-x-2" role="group">
+        @for(mode of analysisModes; track mode.id) {
+           <button type="button"
+                   (click)="setMode(mode.id)"
+                   [disabled]="isLoading()"
+                   [class]="'relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-full focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:cursor-not-allowed transition-colors ' +
+                            (selectedMode() === mode.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')">
+             {{ mode.name }}
+           </button>
+        }
+      </div>
+    </div>
+    
+    @if(analysisResult()) {
+      <button (click)="toggleResult()" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 self-center">
+        {{ showResult() ? 'Ẩn kết quả' : 'Hiện kết quả' }}
+      </button>
+    }
+  </div>
+
+  @if (showResult()) {
+    <div class="mt-4 p-5 border border-gray-200 rounded-2xl bg-white shadow-sm min-h-[8rem]">
+      @if (isLoading() && !analysisResult()) {
+        <div class="flex items-center text-gray-500">
+            <svg class="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>AI đang "suy nghĩ", vui lòng chờ trong giây lát...</span>
+        </div>
+      } @else if (error()) {
+        <div class="text-red-600">{{ error() }}</div>
+      } @else if (analysisResult() !== null) {
+        <div class="prose prose-sm max-w-none text-gray-700" [innerHTML]="formatResponse(analysisResult())"></div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,149 @@
+<div class="space-y-8">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">🔬 Phân tích Chi tiết</h2>
+    <p class="mt-1 text-sm text-gray-500">Xem dữ liệu theo từng cấp: Sản phẩm > KOC > Video.</p>
+  </div>
+
+  <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+    <app-ai-analyzer [promptKey]="aiPromptKey" [data]="aiData()"></app-ai-analyzer>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Level 1: Products -->
+    <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[75vh]">
+      <div class="p-4 bg-slate-50 border-b border-gray-200 flex-shrink-0">
+        <h3 class="text-base font-semibold text-gray-900">Cấp 1: Sản phẩm</h3>
+      </div>
+      <ul class="divide-y divide-gray-200 overflow-y-auto flex-grow">
+        @for(product of paginatedProducts(); track product.id) {
+          <li
+            (click)="selectProduct(product.id)"
+            [class]="'p-4 cursor-pointer transition-colors duration-150 ' + (selectedProductId() === product.id ? 'bg-blue-100' : 'hover:bg-slate-100/70')">
+            <div class="flex justify-between items-center">
+              <p class="text-sm font-medium text-gray-900 truncate" title="{{product.id}}">ID: {{ product.id }}</p>
+              @if(selectedProductId() === product.id) {
+                <span class="text-indigo-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                </span>
+              }
+            </div>
+            <p class="text-sm text-gray-500 mt-1">GMV: {{ product.gmv | number:'1.0-0' }}</p>
+          </li>
+        }
+      </ul>
+      <div class="flex-shrink-0">
+        <app-pagination 
+            [uniqueId]="'products-pagination'" 
+            [totalItems]="products().length"
+            [itemsPerPage]="productsItemsPerPage()"
+            [currentPage]="productsCurrentPage()"
+            (pageChange)="onProductsPageChange($event)"
+            (itemsPerPageChange)="onProductsItemsPerPageChange($event)">
+        </app-pagination>
+      </div>
+    </div>
+
+    <!-- Level 2: KOCs -->
+    <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[75vh]">
+        <div class="p-4 bg-slate-50 border-b border-gray-200 flex-shrink-0">
+            <h3 class="text-base font-semibold text-gray-900">Cấp 2: KOC</h3>
+        </div>
+        @if (!selectedProductId()) {
+            <div class="flex-1 flex items-center justify-center p-10 text-center text-sm text-gray-500">
+                <p>Chọn một sản phẩm<br>để xem danh sách KOC.</p>
+            </div>
+        } @else {
+            <ul class="divide-y divide-gray-200 overflow-y-auto flex-grow">
+                @for(koc of paginatedKocs(); track koc.name) {
+                <li (click)="selectKoc(koc.name)" [class]="'p-4 cursor-pointer transition-colors duration-150 ' + (selectedKoc() === koc.name ? 'bg-blue-100' : 'hover:bg-slate-100/70')">
+                    <div class="flex justify-between items-center">
+                      <p class="text-sm font-medium text-gray-900 truncate">{{ koc.name }}</p>
+                      @if(selectedKoc() === koc.name) {
+                          <span class="text-indigo-600">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                          </span>
+                      }
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">GMV: {{ koc.gmv | number:'1.0-0' }} | ROI: {{ koc.roi | number:'1.2-2' }}</p>
+                </li>
+                }
+                @if(kocsForSelectedProduct().length === 0) {
+                    <li class="p-4 text-center text-sm text-gray-500">Không có KOC nào cho sản phẩm này.</li>
+                }
+            </ul>
+            <div class="flex-shrink-0">
+                <app-pagination 
+                    [uniqueId]="'kocs-pagination'" 
+                    [totalItems]="kocsForSelectedProduct().length"
+                    [itemsPerPage]="kocsItemsPerPage()"
+                    [currentPage]="kocsCurrentPage()"
+                    (pageChange)="onKocsPageChange($event)"
+                    (itemsPerPageChange)="onKocsItemsPerPageChange($event)">
+                </app-pagination>
+            </div>
+        }
+    </div>
+
+    <!-- Level 3: Videos -->
+    <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[75vh]">
+        <div class="p-4 bg-slate-50 border-b border-gray-200 flex-shrink-0">
+            <h3 class="text-base font-semibold text-gray-900">Cấp 3: Video</h3>
+             @if (selectedKoc()) {
+              <div class="mt-2">
+                <label class="text-xs font-medium text-gray-600">Sắp xếp theo:</label>
+                <div class="flex items-center space-x-2 mt-1" role="group">
+                  @for (sort of [{key: 'gmv', label: 'Doanh thu'}, {key: 'roi', label: 'ROI'}, {key: 'cir', label: 'CIR'}]; track sort.key) {
+                    <button type="button"
+                            (click)="setVideoSort(sort.key)"
+                            [class]="'relative inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-colors ' +
+                                     (videoSortKey() === sort.key ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-800 hover:bg-slate-300')">
+                      {{ sort.label }}
+                      @if (videoSortKey() === sort.key) {
+                        <span class="ml-1 h-3 w-3">
+                          @if(videoSortDirection() === 'desc') {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                          } @else {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"></path></svg>
+                          }
+                        </span>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+        </div>
+        @if (!selectedKoc()) {
+            <div class="flex-1 flex items-center justify-center p-10 text-center text-sm text-gray-500">
+                <p>Chọn một KOC<br>để xem danh sách video.</p>
+            </div>
+        } @else {
+            <ul class="divide-y divide-gray-200 overflow-y-auto flex-grow">
+                @for(video of paginatedVideos(); track $index; let i = $index) {
+                <li class="p-4" [class]="i < 20 ? 'bg-green-50' : ''">
+                    <p class="text-xs text-gray-500">ID: {{ video.videoId }}</p>
+                    <p class="text-sm font-medium text-gray-900 truncate mt-1" title="{{ video.videoTitle }}">{{ video.videoTitle }}</p>
+                    <p class="mt-1 text-sm text-gray-500">GMV: {{ video.gmv | number:'1.0-0' }} | Chi phí: {{ video.cost | number:'1.0-0' }} | ROI: {{ video.roi | number:'1.2-2' }}</p>
+                    @if(i < 20) {
+                        <span class="mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Top 20</span>
+                    }
+                </li>
+                }
+                 @if(videosForSelectedKoc().length === 0) {
+                    <li class="p-4 text-center text-sm text-gray-500">Không có video nào.</li>
+                }
+            </ul>
+             <div class="flex-shrink-0">
+                <app-pagination 
+                    [uniqueId]="'videos-pagination'" 
+                    [totalItems]="videosForSelectedKoc().length"
+                    [itemsPerPage]="videosItemsPerPage()"
+                    [currentPage]="videosCurrentPage()"
+                    (pageChange)="onVideosPageChange($event)"
+                    (itemsPerPageChange)="onVideosItemsPerPageChange($event)">
+                </app-pagination>
+            </div>
+        }
+    </div>
+  </div>
+</div>

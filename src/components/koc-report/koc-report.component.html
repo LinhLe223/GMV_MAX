@@ -1,0 +1,216 @@
+<div class="space-y-8">
+  @if (!selectedKoc()) {
+    <!-- Summary View: List of all KOCs -->
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">👥 Báo cáo KOC/KOL</h2>
+      <p class="mt-1 text-sm text-gray-500">Tổng hợp hiệu suất của từng KOC/KOL. Nhấp vào một KOC trong danh sách để xem chi tiết video.</p>
+    </div>
+
+    <!-- AI Analyzer -->
+    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      <app-ai-analyzer [promptKey]="aiPromptKey()" [data]="aiData()"></app-ai-analyzer>
+    </div>
+
+    <!-- Podium Section -->
+    <div class="space-y-4">
+        <h3 class="text-xl font-bold text-center text-gray-800">🏆 Top KOC Xuất Sắc Nhất</h3>
+        @if(top3Kocs().length > 0) {
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr_1fr] gap-4 items-end pt-8">
+                <!-- Rank 2: Left -->
+                <div class="h-full">
+                    @if(top3Kocs().length > 1) {
+                        @let koc = top3Kocs()[1];
+                        <div class="p-5 bg-white rounded-2xl shadow-lg border-2 border-slate-300 text-center h-full flex flex-col justify-between">
+                            <div>
+                                <p class="text-3xl">🥈</p>
+                                <h4 class="font-bold text-xl mt-2 text-gray-800 truncate" [title]="koc.name">{{ koc.name }}</h4>
+                            </div>
+                            <div class="mt-4 space-y-2 text-sm">
+                                <p>💰 Doanh thu: <span class="font-semibold">{{ koc.totalGmv | number:'1.0-0' }} ₫</span></p>
+                                <p>💸 Chi phí: <span class="font-semibold">{{ koc.totalCost | number:'1.0-0' }} ₫</span></p>
+                                <p>📦 Đơn hàng: <span class="font-semibold">{{ koc.totalOrders | number:'1.0-0' }}</span></p>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Rank 1: Center -->
+                <div class="h-full">
+                    @if(top3Kocs().length > 0) {
+                        @let koc = top3Kocs()[0];
+                        <div class="p-6 bg-gradient-to-br from-yellow-50 to-amber-100 rounded-2xl shadow-2xl border-4 border-yellow-400 text-center transform lg:scale-110 h-full flex flex-col justify-between">
+                            <div>
+                                <p class="text-5xl">🥇</p>
+                                <h4 class="font-bold text-2xl mt-2 text-yellow-900 truncate" [title]="koc.name">{{ koc.name }}</h4>
+                            </div>
+                            <div class="mt-4 space-y-2 text-base">
+                                <p>💰 Doanh thu: <span class="font-semibold">{{ koc.totalGmv | number:'1.0-0' }} ₫</span></p>
+                                <p>💸 Chi phí: <span class="font-semibold">{{ koc.totalCost | number:'1.0-0' }} ₫</span></p>
+                                <p>📦 Đơn hàng: <span class="font-semibold">{{ koc.totalOrders | number:'1.0-0' }}</span></p>
+                            </div>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Rank 3: Right -->
+                <div class="h-full">
+                    @if(top3Kocs().length > 2) {
+                        @let koc = top3Kocs()[2];
+                        <div class="p-5 bg-white rounded-2xl shadow-lg border-2 border-orange-300 text-center h-full flex flex-col justify-between">
+                           <div>
+                                <p class="text-3xl">🥉</p>
+                                <h4 class="font-bold text-xl mt-2 text-gray-800 truncate" [title]="koc.name">{{ koc.name }}</h4>
+                            </div>
+                            <div class="mt-4 space-y-2 text-sm">
+                                <p>💰 Doanh thu: <span class="font-semibold">{{ koc.totalGmv | number:'1.0-0' }} ₫</span></p>
+                                <p>💸 Chi phí: <span class="font-semibold">{{ koc.totalCost | number:'1.0-0' }} ₫</span></p>
+                                <p>📦 Đơn hàng: <span class="font-semibold">{{ koc.totalOrders | number:'1.0-0' }}</span></p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        } @else {
+            <p class="text-center text-sm text-gray-500 py-8">Không có dữ liệu KOC để hiển thị.</p>
+        }
+    </div>
+
+    <hr class="my-8 border-gray-200">
+
+    <!-- Leaderboard Section -->
+    <div class="space-y-4">
+        <h3 class="text-xl font-bold text-gray-800">📊 Danh sách KOC Tiềm năng (Top 4+)</h3>
+        <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  @for(header of [
+                    {key: 'name', label: 'Tài khoản TikTok'}, 
+                    {key: 'totalGmv', label: 'Doanh thu'}, 
+                    {key: 'totalCost', label: 'Chi phí'},
+                    {key: 'totalOrders', label: 'Đơn hàng'},
+                    {key: 'avgRoi', label: 'ROI TB'}
+                  ]; track header.key) {
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      <a href="javascript:void(0)" (click)="setSummarySort(header.key)" class="group inline-flex">
+                        {{ header.label }}
+                        <span class="ml-2 flex-none rounded text-gray-400" 
+                              [class]="summarySortKey() === header.key ? 'bg-gray-200 group-hover:bg-gray-300' : 'invisible group-hover:visible group-focus:visible'">
+                          @if(summarySortKey() === header.key && summarySortDirection() === 'desc') {
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                          } @else {
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                          }
+                        </span>
+                      </a>
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for(koc of otherKocs(); track koc.name) {
+                  <tr class="hover:bg-slate-50 cursor-pointer" (click)="selectKoc(koc)">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ koc.name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                       <div class="flex items-center gap-x-3">
+                           <div class="flex-grow bg-gray-100 rounded-full h-4">
+                               <div class="bg-green-500 h-4 rounded-full" [style.width.%]="(koc.totalGmv / maxGmvForOtherKocs()) * 100"></div>
+                           </div>
+                           <span class="w-24 text-right font-medium">{{ koc.totalGmv | number:'1.0-0' }} ₫</span>
+                       </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ koc.totalCost | number:'1.0-0' }} ₫</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ koc.totalOrders | number:'1.0-0' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" [class]="koc.avgRoi > 4 ? 'text-green-600' : (koc.avgRoi > 2 ? 'text-blue-600' : 'text-gray-500')">{{ koc.avgRoi | number:'1.2-2' }}</td>
+                  </tr>
+                }
+                @if(otherKocs().length === 0) {
+                  <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">Không có dữ liệu KOC để hiển thị.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+    </div>
+  } @else {
+    <!-- Detail View: Videos for a specific KOC -->
+    <div class="space-y-6">
+       <button (click)="unselectKoc()" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+        Quay lại danh sách KOC
+      </button>
+
+      <h2 class="text-2xl font-bold text-gray-900">Chi tiết KOC: <span class="text-indigo-600">{{ selectedKoc().name }}</span></h2>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Doanh thu</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ selectedKoc().totalGmv | number:'1.0-0' }} ₫</p></div>
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">ROI Trung bình</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ selectedKoc().avgRoi | number:'1.2-2' }}</p></div>
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Đơn hàng</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ selectedKoc().totalOrders | number:'1.0-0' }}</p></div>
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Video</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ selectedKoc().videoCount | number:'1.0-0' }}</p></div>
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Sản phẩm</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ selectedKoc().productCount | number:'1.0-0' }}</p></div>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <app-ai-analyzer [promptKey]="aiPromptKey()" [data]="aiData()"></app-ai-analyzer>
+      </div>
+      
+      <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+             <thead class="bg-slate-50">
+              <tr>
+                 @for(header of [
+                    {key: 'videoTitle', label: 'Video'},
+                    {key: 'videoId', label: 'ID Video'},
+                    {key: 'gmv', label: 'Doanh thu'},
+                    {key: 'orders', label: 'Đơn hàng'},
+                    {key: 'cost', label: 'Chi phí'},
+                    {key: 'roi', label: 'ROI'},
+                    {key: 'ctr', label: 'CTR (%)'},
+                    {key: 'cvr', label: 'CVR (%)'},
+                    {key: 'videoViewRate25p', label: 'Xem 25% (%)'}
+                ]; track header.key) {
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    <a href="javascript:void(0)" (click)="setVideoSort(header.key)" class="group inline-flex">
+                      {{ header.label }}
+                      <span class="ml-2 flex-none rounded text-gray-400" [class]="videoSortKey() === header.key ? 'bg-gray-200' : 'invisible group-hover:visible'">
+                        @if(videoSortKey() === header.key && videoSortDirection() === 'desc') {
+                          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        } @else {
+                          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                        }
+                      </span>
+                    </a>
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for(video of sortedVideos(); track $index) {
+                <tr class="hover:bg-slate-50">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">
+                    <a [href]="getTikTokVideoUrl(video)" target="_blank" class="hover:text-indigo-600 inline-flex items-center" [title]="video.videoTitle">
+                      {{ video.videoTitle }}
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </a>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">{{ video.videoId }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.gmv | number:'1.0-0' }} ₫</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.orders | number:'1.0-0' }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.cost | number:'1.0-0' }} ₫</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.roi | number:'1.2-2' }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.ctr | number:'1.2-2' }}%</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.cvr | number:'1.2-2' }}%</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ video.videoViewRate25p | number:'1.2-2' }}%</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>

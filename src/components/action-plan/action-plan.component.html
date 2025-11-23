@@ -1,0 +1,142 @@
+<div class="space-y-8 max-w-7xl mx-auto">
+  @if(viewMode() === 'list') {
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">📁 Kế hoạch Hành động</h2>
+      <p class="mt-1 text-sm text-gray-500">Quản lý, theo dõi và đánh giá tất cả các chiến dịch đã được AI đề xuất.</p>
+    </div>
+
+    <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tên Kế hoạch</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Ngày tạo</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Trạng thái</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Mục tiêu GMV</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase"></th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            @for(plan of plans(); track plan.id) {
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ plan.plan_name }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ plan.created_at | date:'dd/MM/yyyy' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" [class]="getStatusClass(plan.status)">
+                        {{ plan.status }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ plan.target_gmv | number:'1.0-0' }} đ</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button (click)="selectPlan(plan)" class="text-indigo-600 hover:text-indigo-900">👁️ Xem chi tiết</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+                  Chưa có kế hoạch nào được lưu. <br> Hãy tạo một kế hoạch mới trong mục "Cố vấn Triển khai".
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if(viewMode() === 'detail' && selectedPlan(); as plan) {
+    @let parsedPlan = parsedPlanContent();
+    <div class="space-y-6">
+       <button (click)="goBackToList()" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+        Quay lại danh sách
+      </button>
+
+      <h2 class="text-2xl font-bold text-gray-900">Chi tiết Kế hoạch: <span class="text-indigo-600">{{ plan.plan_name }}</span></h2>
+      
+      <!-- Tabs -->
+      <div class="border-b border-gray-200">
+          <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button (click)="detailTab.set('plan')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (detailTab() === 'plan' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">Kế hoạch gốc</button>
+            <button (click)="detailTab.set('results')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (detailTab() === 'results' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">Cập nhật & Đánh giá Kết quả</button>
+          </nav>
+      </div>
+      
+      @if (detailTab() === 'plan' && parsedPlan) {
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h4 class="text-lg font-semibold text-gray-800">Dự toán Tài chính</h4>
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full text-sm">
+                 <thead class="bg-slate-100">
+                    <tr>
+                      @for(header of ['Chỉ số (Metric)', 'Hiện tại (Avg cũ)', 'ĐỀ XUẤT MỚI (Target)', 'Ghi chú']; track header) {
+                         <th class="px-3 py-2 text-left font-semibold text-slate-700">{{header}}</th>
+                      }
+                    </tr>
+                 </thead>
+                 <tbody class="bg-white">
+                    @for(row of parsedPlan.financialProjection.roadmapTable; track row.metric) {
+                      <tr class="border-b">
+                          <td class="px-3 py-2 font-medium text-gray-800">{{row.metric}}</td>
+                          <td class="px-3 py-2 text-gray-600">{{row.current}}</td>
+                          <td class="px-3 py-2 font-bold text-indigo-600">{{row.newTarget}}</td>
+                          <td class="px-3 py-2 text-gray-600">{{row.notes}}</td>
+                      </tr>
+                    }
+                 </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h4 class="text-lg font-semibold text-gray-800">Kế hoạch Hành động Video</h4>
+            <div class="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">
+              @for(item of parsedPlan.creativeScalingPlan; track item.videoId) {
+                <div class="p-3 border rounded-lg bg-white border-gray-200">
+                    <p class="text-sm font-medium text-gray-800 truncate" [title]="item.videoTitle">{{ item.videoTitle }}</p>
+                    <div class="mt-2 flex items-center gap-x-3 text-xs">
+                       <span class="px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-800">{{ item.action }}</span>
+                      <span class="text-gray-600">ROI: <strong>{{ item.roi | number:'1.2-2' }}</strong></span>
+                      <span class="text-gray-600">GMV: <strong>{{ item.gmv | number:'1.0-0' }}</strong></span>
+                    </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+      
+       @if (detailTab() === 'results') {
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            @if(plan.ai_review) {
+              <h3 class="text-lg font-medium leading-6 text-gray-900">Đánh giá Hiệu quả của AI</h3>
+              <div class="mt-4 p-4 border border-gray-200 rounded-xl bg-slate-50">
+                  <div class="prose prose-sm max-w-none text-gray-700" [innerHTML]="formatResponse(plan.ai_review)"></div>
+              </div>
+            } @else {
+              <h3 class="text-lg font-medium leading-6 text-gray-900">Tải lên Kết quả Thực tế</h3>
+              <p class="mt-1 text-sm text-gray-500">Tải lên file Excel/CSV chứa dữ liệu kết quả thực tế để AI so sánh và đưa ra bài học kinh nghiệm.</p>
+              <div class="mt-4 space-y-4">
+                  <input type="file" (change)="handleFeedbackFile($event)" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                  @if (feedbackFileName()) {
+                    <p class="text-sm text-green-700">Đã chọn file: {{ feedbackFileName() }}</p>
+                  }
+                  @if (reviewError()) {
+                    <p class="text-sm text-red-600">{{ reviewError() }}</p>
+                  }
+                  <button (click)="runAIReview()" [disabled]="isReviewing() || !feedbackFileContent()" class="w-full sm:w-auto inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
+                     @if (isReviewing()) {
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>Đang đánh giá...</span>
+                    } @else {
+                         <span>🤖 AI Đánh giá Hiệu quả</span>
+                    }
+                  </button>
+              </div>
+            }
+          </div>
+       }
+    </div>
+  }
+</div>

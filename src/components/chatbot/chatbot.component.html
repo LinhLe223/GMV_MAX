@@ -1,0 +1,53 @@
+<div class="flex flex-col h-full max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+  <div class="flex-shrink-0 p-4 border-b border-gray-200">
+    <h2 class="text-2xl font-bold text-gray-900">💬 AI Chatbot</h2>
+    <p class="mt-1 text-sm text-gray-500">
+      Đặt câu hỏi bằng ngôn ngữ tự nhiên để khai thác dữ liệu của bạn.
+    </p>
+  </div>
+
+  <div #chatContainer class="flex-1 overflow-y-auto p-4 space-y-6">
+    @for(message of chatHistory(); track $index) {
+      <div class="flex items-start gap-3" [class]="message.role === 'user' ? 'justify-end' : ''">
+        @if(message.role === 'model') {
+          <div class="flex-shrink-0 h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.256 9a1 1 0 010 1.8l-3.11 1.054-1.178 4.455a1 1 0 01-1.933 0L9.854 11.854 6.744 10.8a1 1 0 010-1.8l3.11-1.054L11.033 2.744A1 1 0 0112 2z" clip-rule="evenodd" /></svg>
+          </div>
+        }
+        <div 
+          class="p-3 rounded-xl max-w-lg"
+          [class]="message.role === 'user' ? 'bg-slate-100 text-gray-900' : 'bg-white border border-gray-200 text-gray-800'">
+            <div class="prose prose-sm max-w-none" [innerHTML]="formatResponse(message.text)"></div>
+            @if(isLoading() && $index === chatHistory().length - 1 && message.role === 'model') {
+                 <span class="inline-block w-2 h-2 ml-2 bg-gray-500 rounded-full animate-pulse"></span>
+            }
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="flex-shrink-0 p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+     @if(error()) {
+        <div class="text-sm text-red-500 mb-2">{{ error() }}</div>
+     }
+    <div class="relative">
+      <textarea 
+        [value]="currentMessage()"
+        (input)="currentMessage.set($event.target.value)"
+        (keydown.enter)="$event.preventDefault(); sendMessage()"
+        [disabled]="isLoading()"
+        rows="1"
+        placeholder="Hỏi AI bất cứ điều gì về dữ liệu..."
+        class="block w-full resize-none p-3 pr-16 text-sm bg-slate-100 text-gray-900 border-transparent rounded-lg shadow-sm focus:bg-white focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500 disabled:bg-slate-200">
+      </textarea>
+      <button 
+        (click)="sendMessage()" 
+        [disabled]="isLoading() || !currentMessage().trim()"
+        class="absolute right-2 bottom-[7px] p-2 rounded-full text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.428A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

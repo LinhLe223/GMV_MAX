@@ -1,0 +1,43 @@
+
+<div class="w-full max-w-lg mx-auto">
+  <div class="text-center mb-8">
+    <h2 class="text-3xl font-bold text-gray-900">TikTok Ads Analyzer</h2>
+    <p class="mt-2 text-sm text-gray-500">Tải lên file Excel/CSV để bắt đầu phân tích hiệu quả quảng cáo.</p>
+  </div>
+  
+  <div
+    class="relative block w-full border-2 border-dashed rounded-lg p-12 text-center"
+    [class]="dragOver() ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)">
+    
+    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <span class="mt-2 block text-sm font-medium text-gray-900">
+      Kéo thả file vào đây
+    </span>
+    <span class="block text-xs text-gray-500">hoặc</span>
+    <label for="file-upload" class="mt-2 cursor-pointer rounded-md bg-white font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+      <span>chọn file từ máy tính</span>
+      <input id="file-upload" name="file-upload" type="file" class="sr-only" (change)="onFileChange($event)" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+    </label>
+    <p class="text-xs text-gray-500 mt-1">.CSV, .XLSX, .XLS</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="mt-4 text-center">
+      <p class="text-sm text-gray-600">Đang xử lý file, vui lòng chờ...</p>
+      <div class="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+        <div class="h-1 bg-indigo-600 animate-pulse w-full"></div>
+      </div>
+    </div>
+  }
+  
+  @if (dataService.error()) {
+    <div class="mt-4 p-4 bg-red-50 text-red-700 rounded-md">
+      <p class="text-sm font-medium">{{ dataService.error() }}</p>
+    </div>
+  }
+</div>

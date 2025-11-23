@@ -1,0 +1,342 @@
+<div class="space-y-8 max-w-7xl mx-auto">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">⚙️ Admin Panel</h2>
+    <p class="mt-1 text-sm text-gray-500">Quản lý người dùng và cài đặt hệ thống.</p>
+  </div>
+  
+  <!-- Tabs -->
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button (click)="activeTab.set('members')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'members' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        Quản lý thành viên
+      </button>
+       <button (click)="activeTab.set('config')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'config' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        📊 Cấu hình & Chi phí
+      </button>
+       <button (click)="activeTab.set('prompts')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'prompts' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        Cấu hình Prompt
+      </button>
+       <button (click)="activeTab.set('knowledge')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'knowledge' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        Kiến thức AI
+      </button>
+      <button (click)="activeTab.set('trials')" [class]="'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ' + (activeTab() === 'trials' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')">
+        Theo dõi Dùng thử
+      </button>
+    </nav>
+  </div>
+
+  @switch (activeTab()) {
+    @case ('members') {
+      <div class="space-y-8">
+        @if (pendingUsers().length > 0) {
+          <div class="bg-white p-6 rounded-2xl border border-yellow-300 shadow-sm">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Duyệt thành viên ({{ pendingUsers().length }})</h3>
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-200">
+                  @for (user of pendingUsers(); track user.username) {
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ user.username }}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                        <button (click)="approveUser(user.username)" class="text-green-600 hover:text-green-900">Duyệt</button>
+                        <button (click)="rejectUser(user.username)" class="text-red-600 hover:text-red-900">Từ chối</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+          <div class="p-4 border-b"><h3 class="text-lg font-medium leading-6 text-gray-900">Danh sách thành viên</h3></div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tên đăng nhập</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Trạng thái</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Cấp VIP</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Lượt dùng</th>
+                  <th scope="col" class="relative px-6 py-3"><span class="sr-only">Hành động</span></th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (user of managedUsers(); track user.username) {
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ user.username }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" [class]="user.status === 'active' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'">
+                        {{ user.status === 'active' ? 'Hoạt động' : 'Bị khóa' }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      @if (user.username !== superAdminEmail) {
+                        <select [value]="user.vip_level" (change)="updateVipLevel(user.username, $event)" class="rounded-lg border-transparent bg-slate-100 shadow-sm text-sm focus:bg-white focus:border-indigo-500 focus:ring-indigo-500">
+                          <option value="member">Member</option><option value="vip1">VIP 1</option><option value="vip2">VIP 2</option>
+                        </select>
+                      } @else { <span class="font-semibold text-indigo-600">Admin</span> }
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.dailyUsage }} / {{ user.role === 'admin' ? '∞' : 'N/A' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                       @if (user.username !== superAdminEmail) {
+                          <button (click)="toggleUserStatus(user)" [class]="user.status === 'active' ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'">{{ user.status === 'active' ? 'Khóa' : 'Mở khóa' }}</button>
+                          <button (click)="deleteUser(user.username)" class="text-red-600 hover:text-red-900">Xóa</button>
+                       } @else { <span class="text-gray-400 text-xs">Super Admin</span> }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="bg-white shadow-sm rounded-2xl border border-gray-200 mt-8">
+            <div class="p-4 border-b"><h3 class="text-lg font-medium leading-6 text-gray-900">Đặt lại mật khẩu</h3></div>
+            <form (submit)="$event.preventDefault(); resetPassword()" class="p-6 space-y-4 max-w-sm mx-auto">
+                <select id="reset-user" [value]="resetPasswordUsername()" (change)="resetPasswordUsername.set($event.target.value)" class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 shadow-sm sm:text-sm focus:bg-white focus:border-indigo-500 focus:ring-indigo-500">
+                  <option value="">-- Chọn người dùng --</option>
+                  @for (user of managedUsers(); track user.username) { <option [value]="user.username">{{ user.username }}</option> }
+                </select>
+                <input type="password" placeholder="Mật khẩu mới" [value]="resetPasswordNew()" (input)="resetPasswordNew.set($event.target.value)" class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 shadow-sm sm:text-sm focus:bg-white focus:border-indigo-500 focus:ring-indigo-500">
+                 @if(resetPasswordSuccess()) { <p class="text-sm text-green-600">{{ resetPasswordSuccess() }}</p> }
+                <button type="submit" [disabled]="!resetPasswordUsername() || !resetPasswordNew()" class="w-full inline-flex justify-center rounded-full border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 disabled:bg-yellow-300">Cập nhật</button>
+            </form>
+          </div>
+      </div>
+    }
+    @case ('config') {
+      <div class="space-y-8">
+        @let stats = costDashboardStats();
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Token đã dùng</p><p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">{{ stats.totalTokens | number:'1.0-0' }}</p></div>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Chi phí Ước tính</p><p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">${{ stats.totalCost | number:'1.2-5' }}</p></div>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng Request đã gọi</p><p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">{{ stats.totalRequests | number:'1.0-0' }}</p></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-6">
+                 <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <h3 class="text-lg font-medium">Cấu hình Model AI</h3>
+                    <form class="mt-4 space-y-4" (submit)="$event.preventDefault(); saveConfig()">
+                        @for(config of systemConfigs(); track config.config_key) {
+                          @let key = config.config_key;
+                          <div>
+                              <label [for]="key" class="block text-sm font-medium text-gray-700">{{ config.description }}</label>
+                              <div class="mt-2 space-y-2">
+                                @if (!useCustomModel()[key]) {
+                                  <select [id]="key" [value]="config.model_id" (change)="updateStandardModelSelection(key, $event)" class="block w-full rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-10 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                                      @for(model of availableModels; track model) { <option [value]="model">{{model}}</option> }
+                                  </select>
+                                } @else {
+                                    <input type="text" [id]="key" [value]="customModelValues()[key]" (input)="updateCustomModelValue(key, $event)" placeholder="Nhập tên model tùy chỉnh" class="block w-full rounded-lg border-transparent bg-slate-100 py-2 px-3 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                                }
+                                <div class="flex items-center">
+                                    <input [id]="key + '-custom-toggle'" type="checkbox" [checked]="useCustomModel()[key]" (change)="toggleCustomModel(key)" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    <label [for]="key + '-custom-toggle'" class="ml-2 block text-sm text-gray-900 cursor-pointer">Sử dụng tên Model tùy chỉnh?</label>
+                                </div>
+                              </div>
+                          </div>
+                        }
+                        <button type="submit" class="w-full inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">Lưu Cấu hình</button>
+                        @if(configSaved()) { <p class="text-sm text-center text-green-600">Đã lưu thành công!</p> }
+                    </form>
+                 </div>
+                 <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <h3 class="text-lg font-medium">Chi phí theo Model</h3>
+                    <div class="mt-4 space-y-3">
+                        @for(item of costByModelChartData(); track item.model) {
+                            <div>
+                                <div class="flex justify-between text-sm font-medium text-gray-700">
+                                    <span>{{item.model}}</span>
+                                    <span>${{item.cost | number:'1.2-4'}}</span>
+                                </div>
+                                <div class="mt-1 w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="h-2.5 rounded-full" [style.width.%]="item.percentage" [style.background-color]="item.color"></div>
+                                </div>
+                            </div>
+                        } @empty { <p class="text-sm text-gray-500">Chưa có dữ liệu.</p> }
+                    </div>
+                 </div>
+            </div>
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h3 class="text-lg font-medium">Chi phí theo Ngày (15 ngày gần nhất)</h3>
+                <div class="mt-6 flex gap-x-2 h-64 items-end" aria-label="Biểu đồ chi phí">
+                    @for(day of costByDayChartData(); track day.day) {
+                        <div class="relative flex-1 h-full flex flex-col justify-end group">
+                            <div class="bg-indigo-500 hover:bg-indigo-600 w-full" [style.height.%]="day.height"></div>
+                            <div class="absolute -bottom-5 text-center w-full text-xs text-gray-500">{{day.day}}</div>
+                            <div class="absolute bottom-full mb-1 w-max p-2 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 left-1/2 -translate-x-1/2 shadow-lg">
+                                ${{day.cost | number:'1.2-4'}}
+                            </div>
+                        </div>
+                    } @empty { <div class="w-full text-center self-center text-sm text-gray-500">Chưa có dữ liệu.</div> }
+                </div>
+            </div>
+        </div>
+        <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+          <h3 class="text-lg font-medium p-4 border-b">Nhật ký 50 Request Gần nhất</h3>
+          <div class="overflow-x-auto">
+             <table class="min-w-full divide-y divide-gray-200">
+               <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Thời gian</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Module</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Model</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tokens (In/Out)</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Chi phí ($)</th>
+                </tr>
+               </thead>
+               <tbody class="bg-white divide-y divide-gray-200">
+                @for(log of tokenUsageLogs().slice(0, 50); track log.id) {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ log.timestamp | date:'dd/MM HH:mm' }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{{ log.module_name }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{{ log.model_used }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ log.input_tokens | number }}/{{ log.output_tokens | number }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${{ log.estimated_cost | number:'1.2-6' }}</td>
+                    </tr>
+                } @empty { <tr><td colspan="5" class="text-center py-8 text-sm text-gray-500">Chưa có request nào được ghi nhận.</td></tr> }
+               </tbody>
+             </table>
+          </div>
+        </div>
+      </div>
+    }
+    @case('prompts') {
+      <div class="space-y-6">
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Chỉnh sửa Prompt Hệ thống</h3>
+            <p class="mt-1 text-sm text-gray-500">Chọn một prompt từ danh sách để xem và chỉnh sửa nội dung.</p>
+            
+            <div class="mt-4">
+                <label for="prompt-select" class="block text-sm font-medium text-gray-700">Chọn Prompt:</label>
+                <select id="prompt-select" (change)="selectPrompt($event)" [value]="selectedPromptKey()" class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-10 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                    @for(prompt of systemPrompts(); track prompt.key) {
+                        <option [value]="prompt.key">{{ prompt.description }}</option>
+                    }
+                </select>
+            </div>
+
+            @if(selectedPrompt(); as prompt) {
+                <div class="mt-4">
+                    <label [for]="prompt.key + '-content'" class="block text-sm font-medium text-gray-700">Nội dung Prompt:</label>
+                    <textarea 
+                        [id]="prompt.key + '-content'" 
+                        rows="15" 
+                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono"
+                        [value]="prompt.content"
+                        (input)="updatePromptContent(prompt.key, $event)">
+                    </textarea>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button (click)="savePrompt(prompt.key)" class="inline-flex items-center rounded-full border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+                        @if (promptSaveStatus()[prompt.key] === 'saved') {
+                            <span>✅ Đã lưu!</span>
+                        } @else {
+                            <span>💾 Lưu Prompt</span>
+                        }
+                    </button>
+                </div>
+            }
+        </div>
+      </div>
+    }
+    @case('knowledge') { 
+      <div class="space-y-8">
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+          <details open>
+            <summary class="text-lg font-medium leading-6 text-gray-900 cursor-pointer hover:text-indigo-600">
+              ➕ Thêm Tài Liệu Mới
+            </summary>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <label for="knowledge-file-upload" class="block text-sm font-medium text-gray-700">
+                Tải lên file (PDF/TXT/CSV/Excel)
+              </label>
+              <div class="mt-2">
+                <input id="knowledge-file-upload" type="file" multiple (change)="handleFileUpload($event)" [disabled]="isUploading()"
+                  class="block w-full text-sm text-slate-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-indigo-50 file:text-indigo-700
+                  hover:file:bg-indigo-100 cursor-pointer"/>
+              </div>
+              @if (isUploading()) {
+                <div class="mt-2 text-sm text-gray-500">Đang tải lên...</div>
+              }
+              @if (uploadError()) {
+                <div class="mt-2 text-sm text-red-600">{{ uploadError() }}</div>
+              }
+            </div>
+          </details>
+        </div>
+
+        <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+          <h3 class="text-lg font-medium p-4 border-b">Cơ sở Tri thức Hiện tại</h3>
+          <div class="overflow-x-auto">
+             <table class="min-w-full divide-y divide-gray-200">
+               <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tên File</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Loại File</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Ngày Tải lên</th>
+                    <th class="relative px-6 py-3"><span class="sr-only">Hành động</span></th>
+                </tr>
+               </thead>
+               <tbody class="bg-white divide-y divide-gray-200">
+                  @for (item of knowledgeBaseItems(); track item.id) {
+                    <tr class="hover:bg-slate-50">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.fileName }}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{{ item.mimeType }}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.uploaded_at | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button (click)="deleteKnowledgeItem(item.id)" class="text-red-600 hover:text-red-900">Xóa</button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">Chưa có tài liệu nào trong cơ sở tri thức.</td>
+                    </tr>
+                  }
+               </tbody>
+             </table>
+          </div>
+        </div>
+      </div>
+    }
+    @case ('trials') {
+      <div class="space-y-8">
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Theo dõi Người dùng Thử</h3>
+          <p class="mt-1 text-sm text-gray-500">Danh sách các phiên dùng thử và số lượt đã sử dụng.</p>
+          <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Định danh Phiên (ID)</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Số lần dùng</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Lần cuối dùng</th>
+                  <th scope="col" class="relative px-6 py-3"><span class="sr-only">Hành động</span></th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (trial of trialTrackings(); track trial.id) {
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700" [title]="trial.id">{{ trial.id.substring(0, 18) }}...</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ trial.usageCount }} / 3</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ trial.lastUsed }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button (click)="resetTrial(trial.id)" class="text-indigo-600 hover:text-indigo-900">Reset</button>
+                    </td>
+                  </tr>
+                }
+                 @if (trialTrackings().length === 0) {
+                  <tr><td colspan="4" class="px-6 py-10 text-center text-sm text-gray-500">Chưa có ai dùng thử.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>

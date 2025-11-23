@@ -1,0 +1,275 @@
+
+<div class="space-y-8 max-w-7xl mx-auto">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">🤖 Cố vấn Triển khai (Data-Driven)</h2>
+    <p class="mt-1 text-sm text-gray-500">
+      Nhập mục tiêu của bạn. AI sẽ phân tích dữ liệu quá khứ và kiến thức GMV Max để đề xuất kế hoạch hành động tối ưu.
+    </p>
+  </div>
+
+  @if (!dataService.dataLoaded()) {
+    <div class="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10m0 0h16M4 7l8-4 8 4M4 7l8 4v10M12 11v10m8-10v10l-8 4-8-4" />
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">Chưa có dữ liệu</h3>
+      <p class="mt-1 text-sm text-gray-500">Vui lòng tải lên file Excel/CSV ở trang Tổng quan để sử dụng tính năng này.</p>
+    </div>
+  } @else {
+    @if (!plan()) {
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <form (submit)="$event.preventDefault(); generateInitialPlan()" class="space-y-6">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Bước 1: Lọc dữ liệu (Tùy chọn)</h3>
+          <details class="bg-slate-50 p-3 rounded-lg border">
+            <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+              <span class="font-semibold">🔻 Mở rộng:</span> 🚫 Loại trừ Sản phẩm/Chiến dịch (Hết hàng/Cũ)
+            </summary>
+            <div class="mt-4 space-y-3">
+              <input type="text" [value]="exclusionSearchTerm()" (input)="exclusionSearchTerm.set($event.target.value)" placeholder="🔍 Tìm tên chiến dịch/sản phẩm cần loại bỏ..." class="block w-full rounded-lg border-transparent bg-white shadow-sm sm:text-sm focus:border-indigo-500 focus:ring-indigo-500">
+              <div class="flex items-center">
+                <input type="checkbox" [checked]="isAllFilteredForExclusionSelected()" (change)="toggleSelectAllFilteredForExclusion()" [disabled]="filteredForExclusion().length === 0" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                <label class="ml-3 block text-sm font-medium text-gray-700 cursor-pointer">✅ Loại trừ tất cả kết quả tìm kiếm này</label>
+              </div>
+              <div class="p-2 h-40 overflow-y-auto rounded-md border border-gray-300 bg-white">
+                <div class="space-y-2">
+                  @for (product of filteredForExclusion(); track product.name) {
+                    <div class="flex items-center">
+                      <input type="checkbox" [id]="'exclude-' + product.name" [checked]="isSelectedExcludedProduct(product.name)" (change)="toggleExcludedProductSelection(product.name)" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                      <label [for]="'exclude-' + product.name" class="ml-3 block text-sm text-gray-700 truncate cursor-pointer">{{ product.name }}</label>
+                    </div>
+                  } @empty {
+                    <p class="text-center text-sm text-gray-500 py-4">Không tìm thấy.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </details>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-sm font-medium text-gray-700">🎯 Chọn Sản phẩm:</label>
+                <div class="flex items-center"><input type="checkbox" [checked]="isAllAvailableSelected()" (change)="toggleSelectAllAvailable()" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label class="ml-2 text-sm text-gray-600 cursor-pointer">✅ Chọn tất cả</label></div>
+              </div>
+              <div class="p-2 h-40 overflow-y-auto rounded-lg border border-gray-300 bg-white">
+                <div class="space-y-2">
+                  @for (product of availableProducts(); track product.name) {
+                    <div class="flex items-center"><input type="checkbox" [id]="'prod-' + product.name" [checked]="isSelectedProduct(product.name)" (change)="toggleProductSelection(product.name)" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label [for]="'prod-' + product.name" class="ml-3 block text-sm text-gray-700 truncate cursor-pointer">{{ product.name }}</label></div>
+                  } @empty {
+                    <p class="text-sm text-gray-500 text-center py-4">Không có sản phẩm.</p>
+                  }
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">👤 Chọn KOC (Để trống = Tất cả)</label>
+              <div class="mt-1 p-2 h-40 overflow-y-auto rounded-lg border border-gray-300" [class]="selectedProducts().length > 0 || allProducts().length === 0 ? 'bg-white' : 'bg-gray-100'">
+                @if (selectedProducts().length > 0 || allProducts().length === 0) {
+                  <div class="space-y-2">
+                    @for (koc of availableKocs(); track koc) {
+                      <div class="flex items-center"><input type="checkbox" [id]="'koc-' + koc" [checked]="isSelectedKoc(koc)" (change)="toggleKocSelection(koc)" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label [for]="'koc-' + koc" class="ml-3 block text-sm text-gray-700 truncate cursor-pointer">{{ koc }}</label></div>
+                    } @empty {
+                      <p class="text-sm text-gray-500 text-center py-4">Không có KOC.</p>
+                    }
+                  </div>
+                } @else { <div class="flex items-center justify-center h-full"><p class="text-sm text-gray-500">Chọn sản phẩm trước.</p></div> }
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Bước 2: Nhập mục tiêu</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label for="target-gmv" class="block text-sm font-medium text-gray-700">Mục tiêu Doanh thu (GMV)</label>
+              <div class="mt-1 relative rounded-lg shadow-sm">
+                <input type="number" id="target-gmv" [value]="formState().targetGmv" (input)="updateFormState('targetGmv', $event.target.valueAsNumber)" required class="block w-full rounded-lg border-transparent bg-slate-100 pl-4 pr-12 focus:bg-white focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-500 sm:text-sm">VNĐ</span></div>
+              </div>
+            </div>
+            <div>
+              <label for="target-roi" class="block text-sm font-medium text-gray-700">ROI Kỳ vọng</label>
+              <input type="number" id="target-roi" [value]="formState().targetRoi" (input)="updateFormState('targetRoi', $event.target.valueAsNumber)" step="0.1" required class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 shadow-sm focus:bg-white focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div>
+              <label for="duration" class="block text-sm font-medium text-gray-700">Thời gian chiến dịch</label>
+              <select id="duration" [value]="formState().duration" (change)="updateFormState('duration', +$event.target.value)" required class="mt-1 block w-full rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-10 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                @for (day of durationOptions; track day) { <option [value]="day">{{ day }} ngày</option> }
+              </select>
+            </div>
+          </div>
+           <!-- New strategy checkboxes -->
+          <div class="space-y-4 pt-4 border-t border-gray-200">
+             <h3 class="text-lg font-medium leading-6 text-gray-900">Bước 3: Tích hợp dữ liệu tài chính (Tùy chọn)</h3>
+             <p class="text-sm text-gray-500">Chọn để AI tích hợp dữ liệu từ module "P&L & Lợi Nhuận" vào phân tích. Yêu cầu đã tải lên file Đơn hàng & Tồn kho.</p>
+             <div class="flex items-start space-x-6">
+                <div class="flex items-center">
+                  <input id="inventory-strategy" type="checkbox" [checked]="useInventoryStrategy()" (change)="useInventoryStrategy.set($event.target.checked)" [disabled]="!financialsService.financialsLoaded()" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed">
+                  <label for="inventory-strategy" class="ml-2 block text-sm font-medium" [class]="financialsService.financialsLoaded() ? 'text-gray-700' : 'text-gray-400'">
+                    Kích hoạt chiến lược Xả kho
+                  </label>
+                </div>
+                <div class="flex items-center">
+                   <input id="profit-strategy" type="checkbox" [checked]="useProfitStrategy()" (change)="useProfitStrategy.set($event.target.checked)" [disabled]="!financialsService.financialsLoaded()" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed">
+                   <label for="profit-strategy" class="ml-2 block text-sm font-medium" [class]="financialsService.financialsLoaded() ? 'text-gray-700' : 'text-gray-400'">
+                    Kích hoạt tối ưu Lợi nhuận thực
+                  </label>
+                </div>
+             </div>
+             @if(!financialsService.financialsLoaded()) {
+                <p class="text-xs text-yellow-600">Lưu ý: Bạn cần tải file Đơn hàng và Tồn kho trong tab "P&L & Lợi Nhuận" để sử dụng các tính năng này.</p>
+             }
+          </div>
+          <button type="submit" [disabled]="isLoading()" class="w-full inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-lg">
+            @if (!isLoading()) {
+              <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
+              LẬP KẾ HOẠCH TỐI ƯU NGAY
+            } @else {
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span>Đang lập kế hoạch...</span>
+            }
+          </button>
+        </form>
+      </div>
+    }
+
+    @if (isLoading() && !plan()) {
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">AI đang phân tích...</h3>
+        <div class="mt-4 space-y-3">
+          @for (step of thinkingSteps(); track $index) {
+            <div class="flex items-center text-sm font-medium" [class.text-gray-400]="!step.done" [class.text-indigo-600]="step.done">
+              @if(step.done) {
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+              } @else {
+                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              }
+              <span>{{ step.text }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (error()) { <div class="text-red-600 p-4 bg-red-50 rounded-md">{{ error() }}</div> }
+    
+    @if (plan(); as p) {
+      <div class="bg-slate-50 p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-gray-900">📑 Kế Hoạch Tối Ưu Chiến Dịch</h3>
+            <p class="mt-2 text-sm text-gray-600">{{ p.summary.overallStrategy }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <!-- Left and Middle Columns -->
+            <div class="lg:col-span-2 space-y-6">
+              <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h4 class="text-lg font-semibold text-gray-800">Chiến lược Sản phẩm</h4>
+                <div class="mt-4 space-y-4">
+                  @for(item of p.productStrategy; track item.productName; let i = $index) {
+                    <details class="p-4 bg-slate-50 rounded-lg border border-slate-200" [open]="i < 2">
+                      <summary class="font-semibold text-indigo-700 cursor-pointer">{{ item.productName }}</summary>
+                      <p class="mt-2 text-sm text-gray-600">{{ item.reasoning }}</p>
+                      <p class="mt-2 text-sm font-medium text-gray-800">👉 Gợi ý: <span class="font-normal">{{ item.suggestion }}</span></p>
+                    </details>
+                  }
+                </div>
+              </div>
+
+              <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h4 class="text-lg font-semibold text-gray-800">Dự toán Tài chính</h4>
+                <div class="mt-4 space-y-4">
+                   <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-800">
+                      <p><strong>Ngân sách Tăng cường:</strong> {{ p.financialProjection.scaleUpBudgetSuggestion }}</p>
+                      <p class="mt-1"><strong>Quảng cáo Mồi:</strong> {{ p.financialProjection.boosterAdsSuggestion }}</p>
+                   </div>
+                   <div class="overflow-x-auto">
+                      <table class="min-w-full text-sm">
+                         <thead class="bg-slate-100">
+                            <tr>
+                              @for(header of ['Chỉ số (Metric)', 'Hiện tại (Avg cũ)', 'ĐỀ XUẤT MỚI (Target)', 'Ghi chú Chiến lược GMV Max']; track header) {
+                                 <th class="px-3 py-2 text-left font-semibold text-slate-700">{{header}}</th>
+                              }
+                            </tr>
+                         </thead>
+                         <tbody class="bg-white">
+                            @for(row of p.financialProjection.roadmapTable; track row.metric) {
+                              <tr class="border-b">
+                                  <td class="px-3 py-2 font-medium text-gray-800">{{row.metric}}</td>
+                                  <td class="px-3 py-2 text-gray-600">{{row.current}}</td>
+                                  <td class="px-3 py-2 font-bold text-indigo-600">{{row.newTarget}}</td>
+                                  <td class="px-3 py-2 text-gray-600">{{row.notes}}</td>
+                              </tr>
+                            }
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+              </div>
+              
+              <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+                <h4 class="text-lg font-semibold text-gray-800 p-6">Kế hoạch Hành động Video</h4>
+                <div class="space-y-2 px-6 pb-6 max-h-[60vh] overflow-y-auto">
+                  @for(item of p.creativeScalingPlan; track item.videoId) {
+                    <div class="p-3 border rounded-lg transition-all" [class]="item.status === 'accepted' ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-300 opacity-60'">
+                      <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-gray-800 truncate" [title]="item.videoTitle">{{ item.videoTitle }}</p>
+                          <p class="text-xs text-gray-500 font-mono">ID: {{ item.videoId }}</p>
+                          <div class="mt-2 flex items-center gap-x-3 text-xs">
+                             <span [class]="'px-2 py-0.5 rounded-full font-semibold ' + getActionClass(item.action)">{{ item.action }}</span>
+                            <span class="text-gray-600">ROI: <strong>{{ item.roi | number:'1.2-2' }}</strong></span>
+                            <span class="text-gray-600">GMV: <strong>{{ item.gmv | number:'1.0-0' }}</strong></span>
+                          </div>
+                        </div>
+                        <div class="flex-shrink-0 ml-4 flex items-center gap-x-2">
+                          <button (click)="toggleActionStatus(item.videoId)" class="p-1 rounded-full hover:bg-gray-200" [class.text-gray-400]="item.status === 'rejected'" [class.text-green-600]="item.status === 'accepted'" title="Chấp nhận"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>
+                          <button (click)="toggleActionStatus(item.videoId)" class="p-1 rounded-full hover:bg-gray-200" [class.text-gray-400]="item.status === 'accepted'" [class.text-red-600]="item.status === 'rejected'" title="Từ chối"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg></button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column (Sticky) -->
+            <div class="lg:col-span-1">
+              <div class="sticky top-8 space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                  @let summary = planSummary();
+                  <h4 class="text-lg font-semibold text-gray-800">Tóm tắt Kế hoạch</h4>
+                  <div class="mt-4 space-y-3">
+                    <div class="flex justify-between items-baseline"><span class="text-sm text-gray-600">Số video sẽ Nhân bản:</span><span class="text-xl font-bold text-gray-900">{{ summary.videosToScale }}</span></div>
+                    <div class="flex justify-between items-baseline"><span class="text-sm text-gray-600">Số video cần Theo dõi:</span><span class="text-xl font-bold text-gray-900">{{ summary.videosToMonitor }}</span></div>
+                    <div class="flex justify-between items-baseline"><span class="text-sm text-gray-600">Số video Tạm dừng/Tối ưu:</span><span class="text-xl font-bold text-gray-900">{{ summary.videosToPause }}</span></div>
+                    <div class="pt-3 mt-3 border-t">
+                      <div class="flex justify-between items-baseline"><span class="text-sm font-semibold text-gray-700">Ngân sách dự kiến/ngày:</span><span class="text-2xl font-bold text-indigo-600">{{ summary.estimatedDailyBudget | number:'1.0-0' }} đ</span></div>
+                      <div class="flex justify-between items-baseline mt-1"><span class="text-sm font-semibold text-gray-700">Tổng ngân sách ({{formState().duration}} ngày):</span><span class="text-xl font-bold text-indigo-600">{{ (summary.estimatedDailyBudget * formState().duration) | number:'1.0-0' }} đ</span></div>
+                    </div>
+                  </div>
+                  <button (click)="savePlan()" [disabled]="isSaving()" class="w-full mt-6 inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all hover:-translate-y-px hover:shadow-md">
+                      @if(isSaving()) {
+                          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          <span>Đang lưu...</span>
+                      } @else {
+                          <span>💾 Xác nhận & Lưu Kế hoạch</span>
+                      }
+                  </button>
+                   @if(saveSuccess()) {
+                      <div class="mt-3 text-center text-sm font-medium text-green-600">✅ Đã lưu kế hoạch thành công!</div>
+                   }
+                   @if(saveError()) {
+                      <div class="mt-3 text-center text-sm font-medium text-red-600">{{ saveError() }}</div>
+                   }
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                  <h4 class="text-lg font-semibold text-gray-800">Tóm tắt Kiến thức</h4>
+                  <p class="mt-2 text-sm text-gray-600 max-h-40 overflow-y-auto">{{ p.summary.knowledgeSummary }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>

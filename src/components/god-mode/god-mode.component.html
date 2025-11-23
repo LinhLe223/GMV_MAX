@@ -1,0 +1,166 @@
+
+
+
+
+
+
+
+
+<div class="space-y-8">
+  @if (selectedKoc(); as koc) {
+    <!-- Drill-Down View -->
+    <div class="space-y-6">
+       <button (click)="unselectKoc()" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+        Quay lại Bảng Tổng hợp
+      </button>
+
+      <h2 class="text-2xl font-bold text-gray-900">🔍 Soi chi tiết KOC: <span class="text-indigo-600">{{ koc.kocName }}</span></h2>
+
+      @if(selectedKocDetails(); as details) {
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">Tổng đơn KOC này</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ details.totalOrders | number:'1.0-0' }}</p></div>
+            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm"><p class="text-sm font-medium text-gray-500">NMV KOC này</p><p class="mt-1 text-3xl font-bold text-gray-900">{{ details.nmv | number:'1.0-0' }} đ</p></div>
+            <div class="bg-white p-5 rounded-2xl border" [class]="details.netProfit >= 0 ? 'border-green-300' : 'border-red-300'"><p class="text-sm font-medium text-gray-500">Lợi nhuận KOC này</p><p class="mt-1 text-3xl font-bold" [class]="details.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{ details.netProfit | number:'1.0-0' }} đ</p></div>
+        </div>
+      }
+
+      <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+        <div class="p-4 border-b"><h3 class="text-lg font-medium leading-6 text-gray-900">Chi tiết Đơn hàng</h3></div>
+        <div class="overflow-x-auto max-h-[60vh]">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-slate-50 text-xs uppercase text-slate-600 sticky top-0">
+                    <tr>
+                        <th class="px-3 py-3 text-left font-semibold">ID đơn hàng</th>
+                        <th class="px-3 py-3 text-left font-semibold">Tên sản phẩm</th>
+                        <th class="px-3 py-3 text-left font-semibold">Trạng thái</th>
+                        <th class="px-3 py-3 text-left font-semibold">Doanh thu</th>
+                        <th class="px-3 py-3 text-left font-semibold">Giá vốn</th>
+                        <th class="px-3 py-3 text-left font-semibold">Lãi gộp</th>
+                    </tr>
+                </thead>
+                 <tbody class="bg-white divide-y divide-gray-200 text-sm">
+                    @for(order of selectedKocOrders(); track order.order_id) {
+                        <tr [class.bg-red-50]="isFailedOrder(order)">
+                            <td class="px-3 py-4 whitespace-nowrap font-mono text-gray-500">{{order.order_id}}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-800">{{order.product_name}}</td>
+                            <td class="px-3 py-4 whitespace-nowrap" [class]="isFailedOrder(order) ? 'text-red-600 font-medium' : 'text-gray-500'">{{order.status}}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{order.revenue | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{order.cogs | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap font-semibold" [class]="order.grossProfit > 0 ? 'text-green-600' : 'text-red-600'">{{order.grossProfit | number:'1.0-0'}} đ</td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td colspan="6" class="text-center py-10 text-gray-500">Không có đơn hàng nào cho KOC này.</td>
+                        </tr>
+                    }
+                 </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- Master Table View -->
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">🏆 GOD MODE - Bảng Tổng Hợp KOC</h2>
+      <p class="mt-1 text-sm text-gray-500">Dữ liệu được hợp nhất từ Ads, Đơn hàng, và Tồn kho để đưa ra "Sự thật Cuối cùng": Lợi Nhuận Ròng.</p>
+    </div>
+    
+    <!-- General Overview -->
+    <div class="space-y-2">
+      <h3 class="text-lg font-medium leading-6 text-gray-900">Tổng Quan Chiến Dịch</h3>
+      @if (dashboardMetrics(); as metrics) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <p class="text-sm font-medium text-gray-500">Tổng Doanh Thu Thực (NMV)</p>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">{{ metrics.nmv | number:'1.0-0' }} đ</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border" [class]="metrics.netProfit >= 0 ? 'border-green-300 shadow-lg' : 'border-red-300 shadow-lg'">
+            <p class="text-sm font-medium text-gray-500">Tổng Lợi Nhuận Ròng</p>
+            <p class="mt-2 text-3xl font-bold" [class]="metrics.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{ metrics.netProfit | number:'1.0-0' }} đ</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <p class="text-sm font-medium text-gray-500">Tổng Chi Phí Ads</p>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">{{ metrics.adsCost | number:'1.0-0' }} đ</p>
+            <p class="text-xs text-gray-500 mt-1">(Từ {{ dataService.rawData().length | number:'1.0-0' }} dòng file Ads)</p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <p class="text-sm font-medium text-gray-500">Tỷ lệ Hoàn/Hủy</p>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900">{{ metrics.returnRate | number:'1.1-1' }}%</p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+        <div class="p-4 border-b flex flex-col sm:flex-row items-center justify-end gap-4">
+            <div class="flex items-center gap-x-2">
+                <label for="sort-select" class="text-sm font-medium text-gray-700">Sắp xếp theo:</label>
+                <select id="sort-select" [value]="sortKey()" (change)="onSortChange($event)" class="block rounded-lg border-transparent bg-slate-100 py-2 pl-3 pr-8 text-base focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm shadow-sm">
+                    <option value="netProfit_desc">Lợi nhuận giảm dần</option>
+                    <option value="netProfit_asc">Lợi nhuận tăng dần</option>
+                    <option value="nmv_desc">NMV giảm dần</option>
+                    <option value="adsCost_desc">Chi phí Ads giảm dần</option>
+                    <option value="totalCogs_desc">Giá vốn giảm dần</option>
+                    <option value="totalCommission_desc">Hoa hồng giảm dần</option>
+                </select>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-slate-50 text-xs uppercase text-slate-600">
+                    <tr>
+                        <th class="px-3 py-3 text-left font-semibold">Tên KOC</th>
+                        <th class="px-3 py-3 text-left font-semibold">🔗 Video Link (Top Rev)</th>
+                        <th class="px-3 py-3 text-left font-semibold">🔴 Chi phí Ads</th>
+                        <th class="px-3 py-3 text-left font-semibold">🟢 NMV (Thực)</th>
+                        <th class="px-3 py-3 text-left font-semibold">📦 Giá Vốn</th>
+                        <th class="px-3 py-3 text-left font-semibold">💸 Hoa Hồng</th>
+                        <th class="px-3 py-3 text-left font-semibold">💰 LỢI NHUẬN RÒNG</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200 text-sm">
+                    @for(koc of paginatedData(); track koc.kocName) {
+                        <tr class="hover:bg-slate-50" [class.bg-red-50]="koc.netProfit < 0 || (koc.adsCost > 0 && koc.nmv === 0)">
+                            <td class="px-3 py-4 whitespace-nowrap">
+                                <button (click)="selectKoc(koc)" class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline text-left">
+                                    {{koc.kocName}}
+                                </button>
+                            </td>
+                             <td class="px-3 py-4 whitespace-nowrap text-center">
+                                @if (koc.latestVideoLink) {
+                                    <a [href]="koc.latestVideoLink" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">[Xem Video]</a>
+                                } @else {
+                                    <span class="text-gray-400">N/A</span>
+                                }
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.adsCost | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap font-semibold text-blue-600">{{koc.nmv | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.totalCogs | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.totalCommission | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap font-bold flex items-center gap-x-2" [class]="koc.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">
+                                {{koc.netProfit | number:'1.0-0'}} đ
+                                @if (koc.netProfit > 1000000) { <span title="Có lãi">✅</span> }
+                                @else if (koc.netProfit < 0) { <span title="Đang lỗ">💀</span> }
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td colspan="7" class="text-center py-10 text-gray-500">Không có dữ liệu để hiển thị.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (sortedData().length > 0) {
+            <app-pagination
+                [totalItems]="sortedData().length"
+                [itemsPerPage]="itemsPerPage()"
+                [currentPage]="currentPage()"
+                (pageChange)="onPageChange($event)"
+                (itemsPerPageChange)="onItemsPerPageChange($event)">
+            </app-pagination>
+        }
+    </div>
+  }
+</div>

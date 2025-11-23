@@ -1,0 +1,5 @@
+{
+  "name": "V4 nâng cấp gọn - TAM ĐẠI MỘC - TikTok Ads GMV Max Analyzer",
+  "description": "An advanced dashboard to analyze TikTok Ads performance from CSV/Excel files. It provides insights into KOC/KOL, product, and video effectiveness, featuring AI-powered analysis using the Gemini API to deliver automated reports and optimization suggestions.",
+  "requestFramePermissions": []
+}
