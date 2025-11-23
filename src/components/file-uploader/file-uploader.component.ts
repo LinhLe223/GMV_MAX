@@ -15,7 +15,8 @@ import { FinancialsService } from '../../services/financials.service';
 export class FileUploaderComponent {
   dataService = inject(DataService);
   authService = inject(AuthService);
-  financialsService = inject(FinancialsService);
+  financialsService = inject(FinancialsService); // Inject Service
+  
   isLoading = signal(false);
   dragOver = signal(false);
 
@@ -46,24 +47,24 @@ export class FileUploaderComponent {
 
   private async handleFile(file: File): Promise<void> {
     if (!this.authService.canUploadFile()) {
-        this.dataService.setError("Bạn đã hết lượt tải file trong ngày. Vui lòng nâng cấp VIP hoặc liên hệ admin.");
+        this.dataService.setError("Bạn đã hết lượt tải file trong ngày.");
         return;
     }
 
-    if (!file.type.match(/csv|sheet/) && !file.name.endsWith('.xlsx') && !file.name.endsWith('.csv') && !file.name.endsWith('.xls')) {
-        this.dataService.setError("Định dạng file không hợp lệ. Vui lòng tải lên file CSV hoặc Excel.");
+    if (!file.name.match(/\.(csv|xlsx|xls)$/i)) {
+        this.dataService.setError("Định dạng file không hợp lệ. Vui lòng tải file Excel/CSV.");
         return;
     }
-    
+
     this.isLoading.set(true);
-    this.dataService.setError(null);
-
+    
     try {
+      // GỌI SERVICE ĐỂ XỬ LÝ FILE THÔNG MINH (TỰ TÌM HEADER)
       await this.financialsService.processAndLoadAdsFile(file);
       this.authService.incrementFileUploadCount();
     } catch (error) {
       console.error(error);
-      // The error is already set in dataService by the financialsService, so no need to set it again.
+      // Lỗi đã được hiển thị trong Service
     } finally {
       this.isLoading.set(false);
     }

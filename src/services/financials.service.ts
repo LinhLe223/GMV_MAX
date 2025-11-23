@@ -1,3 +1,4 @@
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem, GodModeItem, CostStructure, KocOrderItemDetail } from '../models/financial.model';
@@ -44,14 +45,9 @@ export class FinancialsService {
   // --- DERIVED DATA & STATUS ---
   financialsLoaded = computed(() => this.orderData().length > 0 && this.inventoryData().length > 0 && this.godModeData().length > 0);
 
-  // #region RESTORED/RE-IMPLEMENTED SERVICE MEMBERS
-  // The following signals and methods were restored to fix "undefined is not a function" errors
-  // in components like PnlReportComponent, SidebarComponent, and ChatbotComponent.
-  
   /**
    * Central computed signal that merges Ads, Orders, and Inventory data.
    * This serves as the single source of truth for all P&L calculations.
-   * Other public signals (godModeData, kocPnlData) are derived from this.
    */
   private masterPnlData = computed(() => {
     const adsData = this.dataService.rawData();
@@ -99,7 +95,7 @@ export class FinancialsService {
       
       const item = kocMap.get(key)!;
       item.totalOrders++;
-      item.orderGmv += order.revenue || 0; // Aggregate GMV from all orders
+      item.orderGmv += order.revenue || 0;
 
       const isReturn = ['Đã hủy', 'Đã đóng', 'Thất bại'].includes(order.status) || (order.return_status && order.return_status.includes('Hoàn tiền'));
       
@@ -117,8 +113,9 @@ export class FinancialsService {
     return Array.from(kocMap.values()).map(item => {
       const platformFee = item.nmv * ((costConfig?.platformFeePercent || 0) / 100);
       let opsFee = 0;
+      const successOrders = item.totalOrders - item.returnCount;
       if(costConfig?.operatingFee?.type === 'fixed') {
-        opsFee = item.totalOrders * (costConfig.operatingFee.value || 0);
+        opsFee = successOrders * (costConfig.operatingFee.value || 0);
       } else if (costConfig?.operatingFee?.type === 'percent') {
         opsFee = item.nmv * ((costConfig.operatingFee.value || 0) / 100);
       }
@@ -138,15 +135,12 @@ export class FinancialsService {
     });
   });
 
-  /**
-   * RESTORED: Data for the GodModeComponent.
-   */
   godModeData = computed<GodModeItem[]>(() => {
     return this.masterPnlData().map(item => ({
         kocName: item.kocName,
         mergeKey: item.mergeKey,
         adsCost: item.adsCost,
-        gmv: item.adsGmv, // In God Mode, GMV refers to the value from the Ads file
+        gmv: item.adsGmv,
         nmv: item.nmv,
         commission: item.commission,
         totalOrders: item.totalOrders,
@@ -158,9 +152,6 @@ export class FinancialsService {
     }));
   });
 
-  /**
-   * RESTORED: Richer P&L data structure for PnlReportComponent and Chatbot.
-   */
   kocPnlData = computed<KocPnlData[]>(() => {
       return this.masterPnlData().map(item => ({
         kocName: item.kocName,
@@ -178,24 +169,116 @@ export class FinancialsService {
         totalOrders: item.totalOrders,
         successOrders: item.totalOrders - item.returnCount,
         failedOrders: item.returnCount,
-        latestVideoLink: '', // This remains difficult to compute here.
+        latestVideoLink: '',
         breakEvenRoas: item.breakEvenRoas,
-        daysOnHand: 0, // Placeholder
-        daysOnHandDisplay: 'N/A', // Placeholder
-        stockQuantity: 0, // Placeholder
+        daysOnHand: 0,
+        daysOnHandDisplay: 'N/A',
+        stockQuantity: 0,
         healthStatus: item.healthStatus,
-        aiCommand: '', // Placeholder
+        aiCommand: '',
       }));
   });
+
+  productPnlData = computed<ProductPnlData[]>(() => {
+    const ordersData = this.orderData();
+    const inventoryData = this.inventoryData();
+    const adsData = this.dataService.rawData();
+    const costConfig = this.enterpriseService.getCostStructure();
+
+    if (ordersData.length === 0) return [];
+
+    const productMap = new Map<string, {
+      productId: string; productName: string; skus: Set<string>;
+      nmv: number; gmv: number; cogs: number; commission: number;
+      returnCount: number; successCount: number; totalCount: number;
+      adsCost: number; stock: number;
+    }>();
+
+    ordersData.forEach(order => {
+      const key = order.product_name;
+      if (!key) return;
+
+      if (!productMap.has(key)) {
+        productMap.set(key, {
+          productId: order.product_id, productName: order.product_name, skus: new Set(),
+          nmv: 0, gmv: 0, cogs: 0, commission: 0, returnCount: 0, successCount: 0,
+          totalCount: 0, adsCost: 0, stock: 0
+        });
+      }
+
+      const product = productMap.get(key)!;
+      product.skus.add(order.seller_sku);
+      product.totalCount++;
+      product.gmv += order.revenue || 0;
+      
+      const isReturn = ['Đã hủy', 'Đã đóng', 'Thất bại'].includes(order.status) || (order.return_status && order.return_status.includes('Hoàn tiền'));
+      if (isReturn) {
+        product.returnCount++;
+      } else {
+        product.successCount++;
+        product.nmv += order.revenue || 0;
+        product.commission += order.commission || 0;
+        const unitCogs = this.findCogs(order.seller_sku, order.product_name, inventoryData);
+        product.cogs += (order.quantity || 1) * unitCogs;
+      }
+    });
+
+    const adsCostByCampaign = adsData.reduce((acc, ad) => {
+      acc[ad.campaignName] = (acc[ad.campaignName] || 0) + ad.cost;
+      return acc;
+    }, {} as Record<string, number>);
+
+    productMap.forEach(product => {
+      product.adsCost = adsCostByCampaign[product.productName] || 0;
+      let totalStock = 0;
+      product.skus.forEach(sku => {
+        const invItem = inventoryData.find(i => i.inventory_sku === sku);
+        if (invItem) totalStock += invItem.stock;
+      });
+      product.stock = totalStock;
+    });
+
+    return Array.from(productMap.values()).map(p => {
+      const platformFee = p.nmv * ((costConfig?.platformFeePercent || 0) / 100);
+      let opsFee = 0;
+      if(costConfig?.operatingFee?.type === 'fixed') {
+        opsFee = p.successCount * (costConfig.operatingFee.value || 0);
+      } else if (costConfig?.operatingFee?.type === 'percent') {
+        opsFee = p.nmv * ((costConfig.operatingFee.value || 0) / 100);
+      }
+      
+      const grossProfit = p.nmv - p.cogs - p.commission - platformFee - opsFee;
+      const netProfit = grossProfit - p.adsCost;
+      const returnRate = p.totalCount > 0 ? (p.returnCount / p.totalCount) * 100 : 0;
+      const realRoas = p.adsCost > 0 ? p.nmv / p.adsCost : 0;
+      const breakEvenRoas = grossProfit > 0 ? p.nmv / grossProfit : Infinity;
+      const avgDailySales = p.successCount / 30; 
+      const daysOnHand = avgDailySales > 0 ? p.stock / avgDailySales : Infinity;
+      
+      let healthStatus: ProductPnlData['healthStatus'] = 'NEUTRAL';
+      if (netProfit < 0) healthStatus = 'BLEEDING';
+      else if (realRoas > breakEvenRoas && netProfit > 0) healthStatus = 'HEALTHY';
+      
+      let aiCommand: ProductPnlData['aiCommand'] = '';
+      if (healthStatus === 'BLEEDING') aiCommand = 'KILL';
+      if (healthStatus === 'HEALTHY') aiCommand = 'SCALE';
+      if (daysOnHand < 7 && daysOnHand > 0) aiCommand = 'INVENTORY_ALERT';
+      if (p.stock <= 0 && p.successCount > 0) aiCommand = 'STOCK_OUT';
+      
+      return {
+        productId: p.productId, productName: p.productName, sku: Array.from(p.skus).join(', '),
+        nmv: p.nmv, gmv: p.gmv, cogs: p.cogs, commission: p.commission, adsCost: p.adsCost,
+        returnCount: p.returnCount, successCount: p.successCount, totalCount: p.totalCount,
+        grossProfit, netProfit, returnRate, breakEvenRoas, realRoas,
+        daysOnHand, daysOnHandDisplay: daysOnHand === Infinity ? '∞' : daysOnHand.toFixed(0),
+        stockQuantity: p.stock, healthStatus, aiCommand
+      };
+    });
+  });
   
-  /**
-   * RESTORED: High-level metrics for the P&L dashboard.
-   */
   dashboardMetrics = computed(() => {
     const pnlData = this.kocPnlData();
-    if (pnlData.length === 0) {
-      return { nmv: 0, returnRate: 0, cogs: 0, netProfit: 0 };
-    }
+    if (pnlData.length === 0) return { nmv: 0, returnRate: 0, cogs: 0, netProfit: 0 };
     const totalNMV = pnlData.reduce((sum, k) => sum + k.nmv, 0);
     const totalOrders = pnlData.reduce((sum, k) => sum + k.totalOrders, 0);
     const totalFailed = pnlData.reduce((sum, k) => sum + k.failedOrders, 0);
@@ -207,9 +290,6 @@ export class FinancialsService {
     };
   });
 
-  /**
-   * RESTORED: Cost breakdown for the P&L dashboard.
-   */
   costStructure = computed(() => {
     const pnlData = this.kocPnlData();
     const ads = pnlData.reduce((s, k) => s + k.adsCost, 0);
@@ -219,61 +299,37 @@ export class FinancialsService {
     return { ads, cogs, commission, total };
   });
 
-  /**
-   * RESTORED: Inventory value metrics for the P&L dashboard.
-   */
   inventoryValue = computed(() => {
-    const invData = this.inventoryData();
-    const pnlData = this.kocPnlData();
     return {
-        totalValue: invData.reduce((s, i) => s + (i.stock * i.cogs), 0),
-        totalCogs: pnlData.reduce((s, k) => s + k.totalCogs, 0)
+        totalValue: this.inventoryData().reduce((s, i) => s + (i.stock * i.cogs), 0),
+        totalCogs: this.kocPnlData().reduce((s, k) => s + k.totalCogs, 0)
     };
   });
   
-  /**
-   * RESTORED: KOCs from Ads file not found in Orders file. Used in Sidebar.
-   */
   unmappedKocs = computed<KocReportStat[]>(() => {
     const adsKocs = this.dataService.kocReportStats();
-    if (this.orderData().length === 0 || adsKocs.length === 0) {
-      return [];
-    }
+    if (this.orderData().length === 0 || adsKocs.length === 0) return [];
     const orderKocNames = new Set(this.orderData().map(o => this.normalizeKocName(o.koc_username)));
-    
     return adsKocs
         .filter(koc => koc.totalGmv > 0 && !orderKocNames.has(this.normalizeKocName(koc.name)))
         .sort((a,b) => b.totalGmv - a.totalGmv);
   });
 
-  /**
-   * RESTORED: Gets enriched order details for a KOC. Used in PnlReportComponent drill-down.
-   */
   getKocOrders(normalizedKocName: string): any[] {
     const orders = this.orderData().filter(o => this.normalizeKocName(o.koc_username) === normalizedKocName);
     const inventory = this.inventoryData();
-    
     return orders.map(o => {
         const isReturn = ['Đã hủy', 'Đã đóng', 'Thất bại'].includes(o.status) || (o.return_status && o.return_status.includes('Hoàn tiền'));
         const revenue = isReturn ? 0 : o.revenue;
         const cogs = isReturn ? 0 : this.findCogs(o.seller_sku, o.product_name, inventory) * (o.quantity || 1);
         const commission = isReturn ? 0 : o.commission;
-        const netProfit = revenue - cogs - commission;
         return {
-            orderId: o.order_id,
-            productName: o.product_name,
-            quantity: o.quantity,
-            price: revenue,
-            cogs,
-            commission,
-            netProfit,
-            status: o.status,
-            isReturn
+            orderId: o.order_id, productName: o.product_name, quantity: o.quantity,
+            price: revenue, cogs, commission, netProfit: revenue - cogs - commission,
+            status: o.status, isReturn
         };
     });
   }
-
-  // #endregion
 
   async processAndLoadAdsFile(file: File): Promise<void> {
     try {
@@ -282,9 +338,8 @@ export class FinancialsService {
       
       if (parsedData.length === 0) {
         throw new Error("File quảng cáo không có dữ liệu hoặc không đúng cấu trúc cột.");
-      } else {
-        this.dataService.loadData(parsedData, file.name);
       }
+      this.dataService.loadData(parsedData, file.name);
     } catch(e) {
       this.dataService.setError((e as Error).message);
       throw e; 
@@ -294,28 +349,18 @@ export class FinancialsService {
   async processPnlFiles(orderFile: File, inventoryFile: File): Promise<void> {
     this.isLoading.set(true);
     this.error.set(null);
-    this.debugInfo.set(null);
-    this.pnlDebugStats.set(null);
-    this.notFoundSkus.set([]);
-
     try {
       const [orders, inventory] = await Promise.all([
-        this.smartReadFile<OrderData>(orderFile, 'order', this.mapOrderData),
-        this.smartReadFile<InventoryData>(inventoryFile, 'inventory', this.mapInventoryData)
+        this.smartReadFile<OrderData>(orderFile, 'order', this.mapOrderData.bind(this)),
+        this.smartReadFile<InventoryData>(inventoryFile, 'inventory', this.mapInventoryData.bind(this))
       ]);
-      
       this.orderData.set(orders);
       this.inventoryData.set(inventory);
-      
-      // Trigger calculation. The computed signals will do the rest.
-      // This is now just a trigger; the logic is inside the 'masterPnlData' computed signal.
       if (this.dataService.rawData().length === 0) {
-          throw new Error("Dữ liệu quảng cáo (Ads Data) chưa được tải. Vui lòng tải file ở trang Tổng quan trước.");
+          console.warn("Chưa có dữ liệu Ads, nhưng vẫn load Order/Inventory.");
       }
-
     } catch (e) {
       this.error.set((e as Error).message);
-      this.resetPartial(); // Reset only PNL data, keep Ads data
       throw e;
     } finally {
       this.isLoading.set(false);
@@ -326,76 +371,43 @@ export class FinancialsService {
     const orderSkuClean = (orderSku || '').toLowerCase().trim();
     const productNameClean = (productName || '').toLowerCase();
   
-    // Priority 1: Exact SKU match
     const exactMatch = inventory.find(i => (i.inventory_sku || '').toLowerCase().trim() === orderSkuClean);
     if (exactMatch) return exactMatch.cogs;
   
-    // Priority 2: Fuzzy Name match
     const nameMatch = inventory.find(i => {
-      const invName = (i.name || '').toLowerCase().trim();
-      return invName.length > 0 && productNameClean.includes(invName);
+       const invName = (i.name || '').toLowerCase().trim();
+       return invName.length > 3 && productNameClean.includes(invName);
     });
     return nameMatch ? nameMatch.cogs : 0;
   }
 
-  /**
-   * This is the original function from the prompt, adapted to be used with the new signal-based architecture.
-   * It is no longer directly called to set a signal, but its logic is now inside the `masterPnlData` computed signal.
-   * This function is kept for reference but is not directly used.
-   */
-  processMasterData(adsData: TiktokAd[], ordersData: OrderData[], inventoryData: InventoryData[], costConfig?: CostStructure): any[] {
-     // This logic has been moved into the masterPnlData computed signal.
-     // Kept for historical reference.
-     return [];
-  }
-
-  /**
-   * RESTORED: This function is required by GodModeComponent for its drill-down feature.
-   */
   getKocDetails(mergeKey: string, allOrders: OrderData[], inventory: InventoryData[]): KocOrderItemDetail[] {
     const orders = allOrders.filter(o => this.normalizeKocName(o.koc_username) === mergeKey);
-    
     return orders.map(o => {
       const isReturn = ['Đã hủy', 'Đã đóng'].includes(o.status);
       const revenue = isReturn ? 0 : (o.revenue || 0);
       const cogs = isReturn ? 0 : (this.findCogs(o.seller_sku, o.product_name, inventory) * (o.quantity || 1));
-      
       return {
-        orderId: o.order_id,
-        productName: o.product_name,
-        sku: o.seller_sku,
-        videoId: o.video_id,
-        revenue: revenue,
-        cogs: cogs,
-        commission: o.commission || 0,
-        profit: revenue - cogs - (o.commission || 0),
-        status: o.status,
-        isReturn: isReturn
+        orderId: o.order_id, productName: o.product_name, sku: o.seller_sku, videoId: o.video_id,
+        revenue, cogs, commission: o.commission || 0, profit: revenue - cogs - (o.commission || 0),
+        status: o.status, isReturn: isReturn
       };
     });
   }
   
-  /**
-   * RESTORED: Required by GodModeComponent for its summary view.
-   */
   calculateGodModeSummary(masterData: GodModeItem[]): any {
-    if (masterData.length === 0) {
-      return { totalNMV: 0, totalRevenue: 0, totalNetProfit: 0, totalAdsCost: 0, totalCOGS: 0, activeKoc: 0, totalKoc: 0, avgReturnRate: 0 };
-    }
+    if (masterData.length === 0) return { totalNMV: 0, totalRevenue: 0, totalNetProfit: 0, totalAdsCost: 0, totalCOGS: 0, activeKoc: 0, totalKoc: 0, avgReturnRate: 0 };
     const summary = masterData.reduce((acc, item) => {
       acc.totalNMV += item.nmv || 0;
-      acc.totalRevenue += item.gmv || 0; // In GodMode, 'gmv' is adsGmv
+      acc.totalRevenue += item.gmv || 0;
       acc.totalNetProfit += item.netProfit || 0;
       acc.totalAdsCost += item.adsCost || 0;
       acc.totalCOGS += item.cogs || 0;
       acc.totalReturnCount += item.returnCount || 0;
       acc.totalOrders += item.totalOrders || 0;
-      if (item.netProfit > 0) {
-        acc.activeKoc++;
-      }
+      if (item.netProfit > 0) acc.activeKoc++;
       return acc;
     }, { totalNMV: 0, totalRevenue: 0, totalNetProfit: 0, totalAdsCost: 0, totalCOGS: 0, activeKoc: 0, totalReturnCount: 0, totalOrders: 0 });
-
     return {
       ...summary,
       totalKoc: masterData.length,
@@ -403,37 +415,25 @@ export class FinancialsService {
     };
   }
 
-  /**
-   * RESTORED: Required by GodModeComponent for BCG matrix classification.
-   */
   classifyBCG(koc: GodModeItem, avgGmv: number, avgProfit: number): 'STAR' | 'COW' | 'QUESTION' | 'DOG' {
-    const isHighGmv = koc.gmv >= avgGmv; // GMV from ads
+    const isHighGmv = koc.gmv >= avgGmv;
     const isHighProfit = koc.netProfit >= avgProfit;
-
-    if (isHighProfit && isHighGmv) return 'STAR';
-    if (!isHighProfit && isHighGmv) return 'COW';
-    if (isHighProfit && !isHighGmv) return 'QUESTION';
+    if (isHighGmv && isHighProfit) return 'STAR';
+    if (isHighGmv && !isHighProfit) return 'COW';
+    if (!isHighGmv && isHighProfit) return 'QUESTION';
     return 'DOG';
   }
 
-  /**
-   * The single, consolidated normalization function for KOC names.
-   */
   private normalizeKocName(name: string): string {
     if (!name) return '';
-    const suffixesToRemove = ['official', 'review', 'channel', 'store'];
+    const suffixes = ['official', 'review', 'channel', 'store'];
     let normalized = name.toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .replace(/đ/g, "d")
       .replace(/[^a-z0-9]/g, '');
-
-    suffixesToRemove.forEach(suffix => {
-        if (normalized.endsWith(suffix)) {
-            normalized = normalized.slice(0, -suffix.length);
-        }
+    suffixes.forEach(s => {
+        if (normalized.endsWith(s)) normalized = normalized.slice(0, -s.length);
     });
-    
     return normalized;
   }
 
@@ -454,49 +454,37 @@ export class FinancialsService {
   private async smartReadFile(file: File, fileType: keyof typeof fileTypeKeywords): Promise<any[]>;
   private async smartReadFile<T>(file: File, fileType: keyof typeof fileTypeKeywords, mapper?: (row: any) => T): Promise<T[] | any[]> {
     const targetKeywords = fileTypeKeywords[fileType];
-
     try {
       const buffer = await file.arrayBuffer();
       const wb: XLSX.WorkBook = XLSX.read(buffer, { type: 'array' });
       const wsname: string = wb.SheetNames[0];
-      const ws: XLSX.WorkSheet = wb.Sheets[wsname];
-
+      const ws: XLSX.WorkBook['Sheets'][string] = wb.Sheets[wsname];
       const rowsPreview: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, range: 'A1:Z20' });
       let headerRowIndex = -1;
       for (let i = 0; i < rowsPreview.length; i++) {
         const row = rowsPreview[i];
         if (!row || row.length === 0) continue;
         const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
-        const matches = targetKeywords.some(kw => rowStr.includes(kw.toLowerCase()));
-        if (matches) {
+        if (targetKeywords.some(kw => rowStr.includes(kw.toLowerCase()))) {
           headerRowIndex = i;
           break;
         }
       }
-
       if (headerRowIndex === -1) {
-        this.debugInfo.update(d => ({...d, [`${fileType}FileColumns`]: (rowsPreview[0] || []).filter(h => h) }));
-        throw new Error(`Không tìm thấy dòng tiêu đề hợp lệ trong file "${file.name}".`);
+        throw new Error(`Không tìm thấy cột bắt buộc trong file "${file.name}". Hãy kiểm tra lại mẫu file.`);
       }
-
       const rawData: any[] = XLSX.utils.sheet_to_json(ws, { range: headerRowIndex });
-
       const cleanedData = rawData.map(row => 
         Object.fromEntries(
           Object.entries(row).map(([key, value]) => [key.trim().replace(/\ufeff/g, ''), value])
         )
       );
-      
-      if (mapper) {
-          return cleanedData.map(mapper.bind(this));
-      }
+      if (mapper) return cleanedData.map(mapper);
       return cleanedData;
-
     } catch (error) {
         const err = error as Error;
-        const message = `Lỗi xử lý file ${file.name}: ${err.message}`;
-        this.debugInfo.update(d => ({...d, errorContext: message}));
-        throw new Error(message);
+        console.error(err);
+        throw new Error(`Lỗi đọc file: ${err.message}`);
     }
   }
 
@@ -522,14 +510,12 @@ export class FinancialsService {
         videoId: String(row['ID video'] || 'N/A'),
         tiktokAccount: String(tiktokAccountVal),
         creativeType: String(row['Loại nội dung sáng tạo'] || 'N/A'),
-        cost: cost,
-        gmv: gmv,
+        cost, gmv,
         roi: roiVal || (cost > 0 ? gmv/cost : 0),
-        impressions: impressions,
-        clicks: clicks,
+        impressions, clicks,
         ctr: this.parseNumber(row['Tỷ lệ nhấp vào quảng cáo sản phẩm'] || row['CTR']),
         cvr: this.parseNumber(row['Tỷ lệ chuyển đổi quảng cáo'] || row['CVR']),
-        orders: orders,
+        orders,
         costPerOrder: costPerOrderVal || (orders > 0 ? cost / orders : 0),
         videoViewRate2s: this.parseNumber(row['Tỷ lệ xem video quảng cáo trong 2 giây']),
         videoViewRate6s: this.parseNumber(row['Tỷ lệ xem video quảng cáo trong 6 giây']),
@@ -568,19 +554,12 @@ export class FinancialsService {
   }
 
   private parseNumber(value: any): number {
-    if (value == null || value === '' || value === '-') {
-        return 0;
-    }
-    if (typeof value === 'number') {
-        return value;
-    }
-
+    if (value == null || value === '' || value === '-') return 0;
+    if (typeof value === 'number') return value;
     let strValue = String(value).trim().replace(/đ|₫|VND|%|\s/gi, '');
     if (!strValue) return 0;
-
     const hasComma = strValue.includes(',');
     const hasDot = strValue.includes('.');
-
     if (hasComma && hasDot) {
         if (strValue.lastIndexOf(',') > strValue.lastIndexOf('.')) {
             strValue = strValue.replace(/\./g, '').replace(',', '.');
@@ -602,7 +581,6 @@ export class FinancialsService {
             strValue = strValue.replace(/\./g, '');
         }
     }
-
     const num = parseFloat(strValue);
     return isNaN(num) ? 0 : num;
   }
