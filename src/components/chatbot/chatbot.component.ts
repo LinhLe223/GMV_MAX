@@ -1,3 +1,4 @@
+
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit, ElementRef, viewChild, afterNextRender, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GeminiService } from '../../services/gemini.service';

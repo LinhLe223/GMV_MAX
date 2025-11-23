@@ -3,9 +3,10 @@
 
 
 
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
-import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem } from '../models/financial.model';
+import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem, GodModeItem } from '../models/financial.model';
 import { DataService, KocReportStat } from './data.service';
 import { TiktokAd } from '../models/tiktok-ad.model';
 import { EnterpriseService } from './enterprise.service';
@@ -38,6 +39,7 @@ export class FinancialsService {
   orderData = signal<OrderData[]>([]);
   inventoryData = signal<InventoryData[]>([]);
   kocPnlData = signal<KocPnlData[]>([]);
+  godModeData = signal<GodModeItem[]>([]);
   ordersWithCogsByKoc = signal<Map<string, EnrichedOrderData[]>>(new Map());
   
   error = signal<string | null>(null);
@@ -122,39 +124,18 @@ export class FinancialsService {
     }
   }
 
-  private findCogs(order: OrderData, inventorySkuMap: Map<string, InventoryData[]>, inventoryNameMap: Map<string, InventoryData[]>): number {
-    const orderSkuClean = (order.seller_sku || '').toLowerCase().trim();
-    const productNameClean = this.normalizeName(order.product_name || '');
-    
-    if (!orderSkuClean && !productNameClean) return 0;
-
-    // Step 1: Exact SKU match
-    if (orderSkuClean) {
-        const exactMatch = inventorySkuMap.get(orderSkuClean);
-        if (exactMatch && exactMatch.length > 0) {
-            return exactMatch[0].cogs;
-        }
-    }
-    
-    // Step 2: Partial SKU match (inv_sku is inside order_sku)
-    if (orderSkuClean) {
-        for (const [invSku, invItems] of inventorySkuMap.entries()) {
-            if (invSku && orderSkuClean.includes(invSku)) { // Ensure invSku is not empty
-                return invItems[0].cogs;
-            }
-        }
-    }
-
-    // Step 3: Name match (inv_name is inside product_name)
-    if (productNameClean) {
-        for (const [invName, invItems] of inventoryNameMap.entries()) {
-            if (invName && productNameClean.includes(invName)) { // Ensure invName is not empty
-                return invItems[0].cogs;
-            }
-        }
-    }
-    
-    return 0; // Not found
+  private findCogs(orderSku: string, productName: string, inventory: InventoryData[]): number {
+    const orderSkuClean = (orderSku || '').toLowerCase().trim();
+    const productNameClean = (productName || '').toLowerCase();
+  
+    // Ưu tiên 1: Khớp chính xác Mã SKU
+    const exactMatch = inventory.find(i => (i.inventory_sku || '').toLowerCase().trim() === orderSkuClean);
+    if (exactMatch) return exactMatch.cogs;
+  
+    // Ưu tiên 2: Khớp Tên (Fuzzy Match)
+    // Nếu Tên trong kho nằm trong Tên sản phẩm đơn hàng (VD: "Strong Men" trong "Combo Strong Men...")
+    const nameMatch = inventory.find(i => i.name && productNameClean.includes(i.name.toLowerCase()));
+    return nameMatch ? nameMatch.cogs : 0; // Không tìm thấy thì = 0
   }
 
   private calculatePnl(): void {
@@ -163,6 +144,12 @@ export class FinancialsService {
       throw new Error("Dữ liệu quảng cáo (Ads Data) chưa được tải. Vui lòng tải file ở trang Tổng quan trước.");
     }
     
+    // Run new God Mode logic
+    const adsData = this.dataService.rawData();
+    const godModeItems = this.processMasterData(adsData, this.orderData(), this.inventoryData());
+    this.godModeData.set(godModeItems);
+
+    // Keep old PNL logic for other components
     const adsKocMap = new Map<string, KocReportStat>(adsKocStats.map(koc => [this.normalizeKoc(koc.name), koc]));
 
     const inventoryData = this.inventoryData();
@@ -214,7 +201,7 @@ export class FinancialsService {
             const returnStatus = (order.return_status || '').toLowerCase();
             const isReal = !failedStatus.some(s => status.includes(s)) && !refundKeywords.some(kw => returnStatus.includes(kw));
 
-            const cogsPerUnit = this.findCogs(order, inventorySkuMap, inventoryNameMap);
+            const cogsPerUnit = this.findCogsOld(order, inventorySkuMap, inventoryNameMap);
             const cogsForItem = cogsPerUnit * order.quantity;
 
             if (isReal) {
@@ -407,7 +394,7 @@ export class FinancialsService {
     const orders = allOrders.filter(o => this.normalizeKoc(o.koc_username || 'Organic/Khác') === kocKey);
     
     return orders.map(o => {
-      const cogs = this.findCogs(o, inventorySkuMap, inventoryNameMap) * (o.quantity || 1);
+      const cogs = this.findCogsOld(o, inventorySkuMap, inventoryNameMap) * (o.quantity || 1);
       
       const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
       const refundKeywords = ['hoàn tiền'];
@@ -490,6 +477,7 @@ export class FinancialsService {
     this.orderData.set([]);
     this.inventoryData.set([]);
     this.kocPnlData.set([]);
+    this.godModeData.set([]);
     this.unmappedKocs.set([]);
     this.notFoundSkus.set([]);
     this.ordersWithCogsByKoc.set(new Map());
@@ -729,7 +717,7 @@ export class FinancialsService {
       const returnStatus = (order.return_status || '').toLowerCase();
       const isReturn = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => returnStatus.includes(kw));
       
-      const skuCost = this.findCogs(order, inventorySkuMap, inventoryNameMap);
+      const skuCost = this.findCogsOld(order, inventorySkuMap, inventoryNameMap);
       const orderCogs = (order.quantity || 1) * skuCost;
 
       if (isReturn) {
@@ -783,49 +771,143 @@ export class FinancialsService {
     });
   }
 
-  // New methods for GOD MODE V2
-  calculateGodModeSummary(masterData: KocPnlData[]) {
-    const summary = {
-      totalRevenue: 0,      // Tổng doanh số (GMV)
-      totalNMV: 0,          // Doanh thu thực (NMV)
-      totalKoc: masterData.length,
-      activeKoc: 0,         // KOC có đơn > 0
-      totalAdsCost: 0,
-      totalCOGS: 0,
-      totalCommission: 0,
-      totalNetProfit: 0,
-      avgReturnRate: 0
-    };
-
-    let totalOrders = 0;
-    let totalReturned = 0;
-
-    masterData.forEach(item => {
-      summary.totalRevenue += item.totalGmv; // Use totalGmv from order data
-      summary.totalNMV += item.nmv;
-      summary.totalAdsCost += item.adsCost;
-      summary.totalCOGS += item.totalCogs;
-      summary.totalCommission += item.totalCommission;
-      summary.totalNetProfit += item.netProfit;
-      
-      if (item.totalOrders > 0) summary.activeKoc++;
-      totalOrders += item.totalOrders;
-      totalReturned += item.failedOrders;
-    });
-
-    summary.avgReturnRate = totalOrders > 0 ? (totalReturned / totalOrders) * 100 : 0;
-    return summary;
+  private findCogsOld(order: OrderData, inventorySkuMap: Map<string, InventoryData[]>, inventoryNameMap: Map<string, InventoryData[]>): number {
+    const orderSkuClean = (order.seller_sku || '').toLowerCase().trim();
+    const productNameClean = this.normalizeName(order.product_name || '');
+    
+    if (!orderSkuClean && !productNameClean) return 0;
+    if (orderSkuClean) {
+        const exactMatch = inventorySkuMap.get(orderSkuClean);
+        if (exactMatch && exactMatch.length > 0) {
+            return exactMatch[0].cogs;
+        }
+    }
+    if (orderSkuClean) {
+        for (const [invSku, invItems] of inventorySkuMap.entries()) {
+            if (invSku && orderSkuClean.includes(invSku)) {
+                return invItems[0].cogs;
+            }
+        }
+    }
+    if (productNameClean) {
+        for (const [invName, invItems] of inventoryNameMap.entries()) {
+            if (invName && productNameClean.includes(invName)) {
+                return invItems[0].cogs;
+            }
+        }
+    }
+    
+    return 0;
   }
 
-  classifyBCG(koc: KocPnlData, avgGMV: number, avgProfit: number): string {
-    // Trục tung: Lợi nhuận (Profit) | Trục hoành: Thị phần (GMV)
-    const highGMV = koc.totalGmv >= avgGMV;
-    const highProfit = koc.netProfit >= avgProfit;
+  private normalizeKocName(name: string): string {
+    if (!name) return '';
+    const suffixesToRemove = ['official', 'review', 'channel', 'store'];
+    let normalized = name.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/[^a-z0-9]/g, '');
 
-    if (highGMV && highProfit) return 'STAR';       // ⭐ Ngôi sao (Vít mạnh)
-    if (highGMV && !highProfit) return 'COW';       // 🐮 Bò sữa (Cần tối ưu chi phí)
-    if (!highGMV && highProfit) return 'QUESTION';  // ❓ Dấu hỏi (Tiềm năng, cần đẩy Ads)
-    return 'DOG';                                   // 🐕 Chó mực (Cắt bỏ)
+    suffixesToRemove.forEach(suffix => {
+        if (normalized.endsWith(suffix)) {
+            normalized = normalized.slice(0, -suffix.length);
+        }
+    });
+    
+    return normalized;
+  }
+  
+  public processMasterData(adsData: TiktokAd[], orderData: OrderData[], inventoryData: InventoryData[]): GodModeItem[] {
+    const adsMap = new Map<string, { cost: number, gmv: number }>();
+    for (const ad of adsData) {
+      const mergeKey = this.normalizeKocName(ad.tiktokAccount);
+      if (!mergeKey) continue;
+      const current = adsMap.get(mergeKey) || { cost: 0, gmv: 0 };
+      current.cost += ad.cost;
+      current.gmv += ad.gmv;
+      adsMap.set(mergeKey, current);
+    }
+
+    const orderMap = new Map<string, {
+      kocName: string;
+      nmv: number;
+      commission: number;
+      totalOrders: number;
+      returnCount: number;
+      cogs: number;
+    }>();
+
+    const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
+    const refundKeywords = ['hoàn tiền'];
+
+    for (const order of orderData) {
+      const mergeKey = this.normalizeKocName(order.koc_username);
+      if (!mergeKey) continue;
+
+      if (!orderMap.has(mergeKey)) {
+        orderMap.set(mergeKey, {
+          kocName: order.koc_username || 'Unknown',
+          nmv: 0,
+          commission: 0,
+          totalOrders: 0,
+          returnCount: 0,
+          cogs: 0,
+        });
+      }
+      const current = orderMap.get(mergeKey)!;
+
+      current.totalOrders++;
+
+      const status = (order.status || '').toLowerCase();
+      const returnStatus = (order.return_status || '').toLowerCase();
+      const isFailed = failedStatus.some(s => status.includes(s)) || refundKeywords.some(kw => returnStatus.includes(kw));
+
+      if (isFailed) {
+        current.returnCount++;
+      } else {
+        const orderCogs = this.findCogs(order.seller_sku, order.product_name, inventoryData) * (order.quantity || 1);
+        current.nmv += order.revenue;
+        current.commission += order.commission;
+        current.cogs += orderCogs;
+      }
+    }
+
+    const allKeys = new Set([...adsMap.keys(), ...orderMap.keys()]);
+    const result: GodModeItem[] = [];
+
+    for (const mergeKey of allKeys) {
+      const adInfo = adsMap.get(mergeKey) || { cost: 0, gmv: 0 };
+      const orderInfo = orderMap.get(mergeKey) || {
+        kocName: adsData.find(ad => this.normalizeKocName(ad.tiktokAccount) === mergeKey)?.tiktokAccount || mergeKey,
+        nmv: 0,
+        commission: 0,
+        totalOrders: 0,
+        returnCount: 0,
+        cogs: 0
+      };
+
+      const netProfit = orderInfo.nmv - orderInfo.cogs - orderInfo.commission - adInfo.cost;
+      const realRoas = adInfo.cost > 0 ? orderInfo.nmv / adInfo.cost : 0;
+      const returnRate = orderInfo.totalOrders > 0 ? (orderInfo.returnCount / orderInfo.totalOrders) * 100 : 0;
+
+      result.push({
+        kocName: orderInfo.kocName,
+        mergeKey,
+        adsCost: adInfo.cost,
+        adsGmv: adInfo.gmv,
+        nmv: orderInfo.nmv,
+        commission: orderInfo.commission,
+        totalOrders: orderInfo.totalOrders,
+        returnCount: orderInfo.returnCount,
+        cogs: orderInfo.cogs,
+        netProfit,
+        realRoas,
+        returnRate,
+      });
+    }
+
+    return result;
   }
 
   getKocDetails(kocMergeKey: string, adsData: TiktokAd[]): KocDetailItem[] {

@@ -114,3 +114,18 @@ export interface ProductPnlData {
   healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
   aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | 'STOCK_OUT' | '';
 }
+
+export interface GodModeItem {
+  kocName: string;
+  mergeKey: string;
+  adsCost: number;
+  adsGmv: number;
+  nmv: number;
+  commission: number;
+  totalOrders: number;
+  returnCount: number;
+  cogs: number;
+  netProfit: number;
+  realRoas: number;
+  returnRate: number;
+}
