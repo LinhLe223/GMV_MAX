@@ -37,6 +37,10 @@ export interface KocPnlData {
   totalOrders: number;
   failedOrders: number;
   latestVideoLink: string;
+  // FIX: Added missing properties for UI suggestions. These were being assigned in
+  // financials.service.ts but were missing from the type definition, causing an error.
+  suggestion: string;
+  suggestionColor: string;
 }
 
 export interface EnrichedOrderData {

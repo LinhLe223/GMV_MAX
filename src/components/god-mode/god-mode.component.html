@@ -6,6 +6,8 @@
 
 
 
+
+
 <div class="space-y-8">
   @if (selectedKoc(); as koc) {
     <!-- Drill-Down View -->
@@ -100,6 +102,7 @@
                     <option value="netProfit_desc">Lợi nhuận giảm dần</option>
                     <option value="netProfit_asc">Lợi nhuận tăng dần</option>
                     <option value="nmv_desc">NMV giảm dần</option>
+                    <option value="adsGmv_desc">GMV (Ads) giảm dần</option>
                     <option value="adsCost_desc">Chi phí Ads giảm dần</option>
                     <option value="totalCogs_desc">Giá vốn giảm dần</option>
                     <option value="totalCommission_desc">Hoa hồng giảm dần</option>
@@ -110,13 +113,15 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-slate-50 text-xs uppercase text-slate-600">
                     <tr>
-                        <th class="px-3 py-3 text-left font-semibold">Tên KOC</th>
-                        <th class="px-3 py-3 text-left font-semibold">🔗 Video Link (Top Rev)</th>
+                        <th class="px-3 py-3 text-left font-semibold">KOC</th>
                         <th class="px-3 py-3 text-left font-semibold">🔴 Chi phí Ads</th>
+                        <th class="px-3 py-3 text-left font-semibold">🔵 GMV (Ads)</th>
                         <th class="px-3 py-3 text-left font-semibold">🟢 NMV (Thực)</th>
                         <th class="px-3 py-3 text-left font-semibold">📦 Giá Vốn</th>
                         <th class="px-3 py-3 text-left font-semibold">💸 Hoa Hồng</th>
+                        <th class="px-3 py-3 text-left font-semibold">📉 % Hoàn/Hủy</th>
                         <th class="px-3 py-3 text-left font-semibold">💰 LỢI NHUẬN RÒNG</th>
+                        <th class="px-3 py-3 text-left font-semibold">💡 Gợi ý</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200 text-sm">
@@ -126,27 +131,30 @@
                                 <button (click)="selectKoc(koc)" class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline text-left">
                                     {{koc.kocName}}
                                 </button>
-                            </td>
-                             <td class="px-3 py-4 whitespace-nowrap text-center">
                                 @if (koc.latestVideoLink) {
-                                    <a [href]="koc.latestVideoLink" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">[Xem Video]</a>
-                                } @else {
-                                    <span class="text-gray-400">N/A</span>
+                                    <a [href]="koc.latestVideoLink" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline ml-2">[Video]</a>
                                 }
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.adsCost | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.adsGmv | number:'1.0-0'}} đ</td>
                             <td class="px-3 py-4 whitespace-nowrap font-semibold text-blue-600">{{koc.nmv | number:'1.0-0'}} đ</td>
                             <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.totalCogs | number:'1.0-0'}} đ</td>
                             <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.totalCommission | number:'1.0-0'}} đ</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-gray-500">{{koc.returnCancelPercent | number:'1.1-1'}}%</td>
                             <td class="px-3 py-4 whitespace-nowrap font-bold flex items-center gap-x-2" [class]="koc.netProfit >= 0 ? 'text-green-600' : 'text-red-600'">
                                 {{koc.netProfit | number:'1.0-0'}} đ
-                                @if (koc.netProfit > 1000000) { <span title="Có lãi">✅</span> }
-                                @else if (koc.netProfit < 0) { <span title="Đang lỗ">💀</span> }
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap">
+                                @if(koc.suggestion) {
+                                    <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" [class]="koc.suggestionColor">
+                                        {{ koc.suggestion }}
+                                    </span>
+                                }
                             </td>
                         </tr>
                     } @empty {
                         <tr>
-                            <td colspan="7" class="text-center py-10 text-gray-500">Không có dữ liệu để hiển thị.</td>
+                            <td colspan="9" class="text-center py-10 text-gray-500">Không có dữ liệu để hiển thị.</td>
                         </tr>
                     }
                 </tbody>

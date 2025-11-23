@@ -2,6 +2,7 @@
 
 
 
+
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinancialsService } from '../../services/financials.service';
@@ -12,7 +13,8 @@ import { DataService } from '../../services/data.service';
 type SortKey = 
   | 'netProfit_desc' 
   | 'netProfit_asc' 
-  | 'nmv_desc' 
+  | 'nmv_desc'
+  | 'adsGmv_desc'
   | 'returnCancelPercent_asc'
   | 'totalCommission_desc'
   | 'totalCogs_desc'
@@ -49,6 +51,7 @@ export class GodModeComponent {
         case 'netProfit_desc': return b.netProfit - a.netProfit;
         case 'netProfit_asc': return a.netProfit - b.netProfit;
         case 'nmv_desc': return b.nmv - a.nmv;
+        case 'adsGmv_desc': return b.adsGmv - a.adsGmv;
         case 'returnCancelPercent_asc': return a.returnCancelPercent - b.returnCancelPercent;
         case 'totalCommission_desc': return b.totalCommission - a.totalCommission;
         case 'totalCogs_desc': return b.totalCogs - a.totalCogs;

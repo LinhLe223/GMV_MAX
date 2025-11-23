@@ -44,8 +44,8 @@ export class FinancialsService {
   unmappedKocs = signal<KocReportStat[]>([]);
   notFoundSkus = signal<string[]>([]);
 
-  private normalizeString(str: string): string {
-    if (!str) return '';
+  private normalizeKoc(str: string): string {
+    if (!str) return 'unknown';
     const suffixesToRemove = ['review', 'official', 'store', 'channel'];
     let normalized = str
       .toLowerCase()
@@ -60,7 +60,7 @@ export class FinancialsService {
         }
     });
 
-    return normalized;
+    return normalized || 'unknown';
   }
 
   private normalizeName(str: string): string {
@@ -116,24 +116,75 @@ export class FinancialsService {
     }
   }
 
+  private findCogs(order: OrderData, inventorySkuMap: Map<string, InventoryData[]>, inventoryNameMap: Map<string, InventoryData[]>): number {
+    const orderSkuClean = (order.seller_sku || '').toLowerCase().trim();
+    const productNameClean = this.normalizeName(order.product_name || '');
+    
+    if (!orderSkuClean && !productNameClean) return 0;
+
+    // Step 1: Exact SKU match
+    if (orderSkuClean) {
+        const exactMatch = inventorySkuMap.get(orderSkuClean);
+        if (exactMatch && exactMatch.length > 0) {
+            return exactMatch[0].cogs;
+        }
+    }
+    
+    // Step 2: Partial SKU match (inv_sku is inside order_sku)
+    if (orderSkuClean) {
+        for (const [invSku, invItems] of inventorySkuMap.entries()) {
+            if (invSku && orderSkuClean.includes(invSku)) { // Ensure invSku is not empty
+                return invItems[0].cogs;
+            }
+        }
+    }
+
+    // Step 3: Name match (inv_name is inside product_name)
+    if (productNameClean) {
+        for (const [invName, invItems] of inventoryNameMap.entries()) {
+            if (invName && productNameClean.includes(invName)) { // Ensure invName is not empty
+                return invItems[0].cogs;
+            }
+        }
+    }
+    
+    return 0; // Not found
+  }
+
   private calculatePnl(): void {
     const adsKocStats = this.dataService.kocReportStats();
     if (adsKocStats.length === 0) {
       throw new Error("Dữ liệu quảng cáo (Ads Data) chưa được tải. Vui lòng tải file ở trang Tổng quan trước.");
     }
     
-    // Use normalized keys for robust merging
-    const adsKocMap = new Map<string, KocReportStat>(adsKocStats.map(koc => [this.normalizeString(koc.name), koc]));
-    const cogsMap = new Map<string, number>(this.inventoryData().map(item => [(item.inventory_sku || '').toLowerCase().trim(), item.cogs]));
+    const adsKocMap = new Map<string, KocReportStat>(adsKocStats.map(koc => [this.normalizeKoc(koc.name), koc]));
 
+    const inventorySkuMap = new Map<string, InventoryData[]>();
+    this.inventoryData().forEach(item => {
+        const key = (item.inventory_sku || '').toLowerCase().trim();
+        if (key) {
+            if (!inventorySkuMap.has(key)) inventorySkuMap.set(key, []);
+            inventorySkuMap.get(key)!.push(item);
+        }
+    });
+
+    const inventoryNameMap = new Map<string, InventoryData[]>();
+    this.inventoryData().forEach(item => {
+        const key = this.normalizeName(item.name || '');
+        if (key) {
+            if (!inventoryNameMap.has(key)) inventoryNameMap.set(key, []);
+            inventoryNameMap.get(key)!.push(item);
+        }
+    });
+    
     const ordersByKoc = new Map<string, OrderData[]>();
     this.orderData().forEach(order => {
-        const kocName = this.normalizeString(order.koc_username || 'Organic/Khác');
+        const kocName = this.normalizeKoc(order.koc_username || 'Organic/Khác');
         if(!ordersByKoc.has(kocName)) ordersByKoc.set(kocName, []);
         ordersByKoc.get(kocName)!.push(order);
     });
 
-    const pnlByKoc = new Map<string, Omit<KocPnlData, 'kocName' | 'normalizedKocName' | 'adsCost' | 'adsGmv' | 'netProfit'>>();
+    const pnlByKoc = new Map<string, Omit<KocPnlData, 'kocName' | 'normalizedKocName' | 'adsCost' | 'adsGmv' | 'netProfit' | 'suggestion' | 'suggestionColor'>>();
     const enrichedOrdersByKoc = new Map<string, EnrichedOrderData[]>();
     
     const failedStatus = ['đã hủy', 'đã đóng', 'thất bại'];
@@ -148,15 +199,13 @@ export class FinancialsService {
         const enrichedOrders: EnrichedOrderData[] = [];
 
         orders.forEach(order => {
-            totalGmv += order.revenue; // GMV is sum of ALL order revenues
+            totalGmv += order.revenue;
             
             const status = (order.status || '').toLowerCase();
             const returnStatus = (order.return_status || '').toLowerCase();
             const isReal = !failedStatus.some(s => status.includes(s)) && !refundKeywords.some(kw => returnStatus.includes(kw));
 
-            // COGS hunting
-            const orderSkuClean = (order.seller_sku || '').toLowerCase().trim();
-            const cogsPerUnit = cogsMap.get(orderSkuClean) || 0;
+            const cogsPerUnit = this.findCogs(order, inventorySkuMap, inventoryNameMap);
             const cogsForItem = cogsPerUnit * order.quantity;
 
             if (isReal) {
@@ -221,6 +270,21 @@ export class FinancialsService {
 
         const originalKocName = adsData?.name || ordersByKoc.get(normalizedKoc)?.[0]?.koc_username || normalizedKoc;
         const adsCost = adsData?.totalCost || 0;
+        const netProfit = (pnlData?.nmv || 0) - (pnlData?.totalCogs || 0) - (pnlData?.totalCommission || 0) - adsCost;
+
+        let suggestion = '';
+        let suggestionColor = '';
+
+        if (netProfit > 1000000 && adsCost > 1000000) {
+            suggestion = 'SCALE';
+            suggestionColor = 'bg-green-100 text-green-800';
+        } else if (netProfit < 0 && adsCost > 2000000) {
+            suggestion = 'CUT';
+            suggestionColor = 'bg-red-100 text-red-800';
+        } else if ((pnlData?.returnCancelPercent || 0) > 30) {
+            suggestion = 'ALERT';
+            suggestionColor = 'bg-yellow-100 text-yellow-800';
+        }
 
         finalPnlData.push({
             kocName: originalKocName,
@@ -231,11 +295,13 @@ export class FinancialsService {
             nmv: pnlData?.nmv || 0,
             totalCommission: pnlData?.totalCommission || 0,
             totalCogs: pnlData?.totalCogs || 0,
-            netProfit: (pnlData?.nmv || 0) - (pnlData?.totalCogs || 0) - (pnlData?.totalCommission || 0) - adsCost,
+            netProfit,
             returnCancelPercent: pnlData?.returnCancelPercent || 0,
             totalOrders: pnlData?.totalOrders || 0,
             failedOrders: pnlData?.failedOrders || 0,
             latestVideoLink: pnlData?.latestVideoLink || '',
+            suggestion,
+            suggestionColor,
         });
     }
 
@@ -255,7 +321,7 @@ export class FinancialsService {
     const totalNmv = pnlData.reduce((sum, koc) => sum + koc.nmv, 0);
     const totalCogs = pnlData.reduce((sum, koc) => sum + koc.totalCogs, 0);
     const totalNetProfit = pnlData.reduce((sum, koc) => sum + koc.netProfit, 0);
-    const totalAdsCost = this.dataService.summaryStats().totalCost; // FIX: Get total directly from source
+    const totalAdsCost = this.dataService.summaryStats().totalCost;
     const totalReturnRate = totalOrders > 0 ? (totalFailedOrders / totalOrders) * 100 : 0;
 
     return {
@@ -271,7 +337,7 @@ export class FinancialsService {
     const pnlData = this.kocPnlData();
     if (pnlData.length === 0) return { ads: 0, cogs: 0, commission: 0, total: 1 };
     
-    const totalAds = this.dataService.summaryStats().totalCost; // FIX: Get total directly from source
+    const totalAds = this.dataService.summaryStats().totalCost;
     const totalCogs = pnlData.reduce((sum, koc) => sum + koc.totalCogs, 0);
     const totalCommission = pnlData.reduce((sum, koc) => sum + koc.totalCommission, 0);
     const total = totalAds + totalCogs + totalCommission;
@@ -303,7 +369,6 @@ export class FinancialsService {
     this.unmappedKocs.set([]);
     this.notFoundSkus.set([]);
     this.ordersWithCogsByKoc.set(new Map());
-    // Do not reset error/debug so user can see it
   }
 
   reset(): void {
@@ -411,7 +476,7 @@ export class FinancialsService {
       product_id: String(row["ID sản phẩm"] || ''),
       product_name: String(row["Tên sản phẩm"] || ''),
       seller_sku: String(row["Sku người bán"] || ''),
-      revenue: this.parseNumber(row["Payment Amount"] || row["Giá"]),
+      revenue: this.parseNumber(row["Payment Amount"]),
       koc_username: String(row["Tên người dùng nhà sáng tạo"] || ''),
       video_id: String(row["Id nội dung"] || ''),
       commission: this.parseNumber(row["Thanh toán hoa hồng thực tế"]),
@@ -426,7 +491,7 @@ export class FinancialsService {
         inventory_sku: String(row["Mã SKU"] || ''),
         stock: this.parseNumber(row["Toàn bộ kho khả dụng"]),
         cogs: this.parseNumber(row["Giá vốn"]),
-        name: String(row["Tên"] || row["Tên sản phẩm"] || ''),
+        name: String(row["Tên"] || ''),
     };
   }
 
