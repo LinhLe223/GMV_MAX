@@ -115,9 +115,9 @@ export class FinancialsService {
       let opsFee = 0;
       const successOrders = item.totalOrders - item.returnCount;
       if(costConfig?.operatingFee?.type === 'fixed') {
-        opsFee = successOrders * (costConfig.operatingFee.value || 0);
+        opsFee = successOrders * (costConfig?.operatingFee?.value || 0);
       } else if (costConfig?.operatingFee?.type === 'percent') {
-        opsFee = item.nmv * ((costConfig.operatingFee.value || 0) / 100);
+        opsFee = item.nmv * ((costConfig?.operatingFee?.value || 0) / 100);
       }
       
       const netProfit = item.nmv - item.cogs - item.commission - item.adsCost - platformFee - opsFee;
@@ -242,9 +242,9 @@ export class FinancialsService {
       const platformFee = p.nmv * ((costConfig?.platformFeePercent || 0) / 100);
       let opsFee = 0;
       if(costConfig?.operatingFee?.type === 'fixed') {
-        opsFee = p.successCount * (costConfig.operatingFee.value || 0);
+        opsFee = p.successCount * (costConfig?.operatingFee?.value || 0);
       } else if (costConfig?.operatingFee?.type === 'percent') {
-        opsFee = p.nmv * ((costConfig.operatingFee.value || 0) / 100);
+        opsFee = p.nmv * ((costConfig?.operatingFee?.value || 0) / 100);
       }
       
       const grossProfit = p.nmv - p.cogs - p.commission - platformFee - opsFee;
@@ -296,6 +296,7 @@ export class FinancialsService {
     const cogs = pnlData.reduce((s, k) => s + k.totalCogs, 0);
     const commission = pnlData.reduce((s, k) => s + k.totalCommission, 0);
     const total = ads + cogs + commission;
+    if (total === 0) return { ads: 0, cogs: 0, commission: 0, total: 0 };
     return { ads, cogs, commission, total };
   });
 
@@ -488,68 +489,107 @@ export class FinancialsService {
     }
   }
 
-  private mapAdsData(row: any): TiktokAd {
-    const cost = this.parseNumber(row['Chi phí']);
-    const gmv = this.parseNumber(row['Doanh thu gộp']);
-    const clicks = this.parseNumber(row['Số lượt nhấp vào quảng cáo sản phẩm'] || row['Số lượt nhấp']);
-    const impressions = this.parseNumber(row['Số lượt hiển thị quảng cáo sản phẩm'] || row['Số lượt hiển thị']);
-    const orders = this.parseNumber(row['Đơn hàng (SKU)']);
-
-    let tiktokAccountVal = row['Tài khoản TikTok'];
-    if (!tiktokAccountVal || String(tiktokAccountVal).trim() === '-' || String(tiktokAccountVal).trim().toLowerCase() === 'không khả dụng') {
-        tiktokAccountVal = 'Unknown';
+  private getRowValue(row: any, possibleKeys: string[]): any {
+    const normalizedKeys = Object.keys(row).reduce((acc, key) => {
+      acc[key.toLowerCase().trim()] = key;
+      return acc;
+    }, {} as Record<string, string>);
+  
+    for (const key of possibleKeys) {
+      const foundKey = normalizedKeys[key.toLowerCase().trim()];
+      if (foundKey && row[foundKey] != null && row[foundKey] !== '') {
+        return row[foundKey];
+      }
     }
-    
-    const roiVal = this.parseNumber(row['ROI']);
-    const costPerOrderVal = this.parseNumber(row['Chi phí cho mỗi đơn hàng'] || row['CPĐH']);
+    return null;
+  }
 
+  private mapAdsData(row: any): TiktokAd {
+    const cols = {
+      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi'],
+      gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu'],
+      koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name'],
+      imp: ['Số lượt hiển thị', 'Impressions', 'Lượt xem'],
+      click: ['Số lượt nhấp', 'Clicks', 'Lượt nhấp'],
+      roi: ['ROI', 'Return on Ad Spend'],
+      campaign: ['Tên chiến dịch', 'Campaign Name', 'Campaign'],
+      product: ['ID sản phẩm', 'Product ID'],
+      video: ['ID video', 'Video ID'],
+      orders: ['Đơn hàng (SKU)', 'Orders'],
+      ctr: ['CTR', 'Tỷ lệ nhấp'],
+      cvr: ['CVR', 'Tỷ lệ chuyển đổi'],
+      costPerOrder: ['Chi phí cho mỗi đơn hàng', 'CPĐH', 'Cost per Order'],
+      videoViewRate2s: ['Tỷ lệ xem video quảng cáo trong 2 giây'],
+      videoViewRate6s: ['Tỷ lệ xem video quảng cáo trong 6 giây'],
+      videoViewRate25p: ['Tỷ lệ xem 25% thời lượng video quảng cáo'],
+      videoViewRate50p: ['Tỷ lệ xem 50% thời lượng video quảng cáo'],
+      videoViewRate75p: ['Tỷ lệ xem 75% thời lượng video quảng cáo'],
+      videoViewRate100p: ['Tỷ lệ xem 100% thời lượng video quảng cáo'],
+    };
+  
+    const cost = this.parseNumber(this.getRowValue(row, cols.cost));
+    const gmv = this.parseNumber(this.getRowValue(row, cols.gmv));
+    const clicks = this.parseNumber(this.getRowValue(row, cols.click));
+    const impressions = this.parseNumber(this.getRowValue(row, cols.imp));
+    const orders = this.parseNumber(this.getRowValue(row, cols.orders));
+    let tiktokAccountVal = this.getRowValue(row, cols.koc);
+
+    if (!tiktokAccountVal || String(tiktokAccountVal).trim() === '-' || String(tiktokAccountVal).trim().toLowerCase() === 'không khả dụng') {
+      tiktokAccountVal = 'Unknown';
+    }
+
+    const roiVal = this.parseNumber(this.getRowValue(row, cols.roi));
+    const costPerOrderVal = this.parseNumber(this.getRowValue(row, cols.costPerOrder));
+  
     return {
-        campaignName: String(row['Tên chiến dịch'] || row['Chiến dịch'] || 'N/A'),
-        productId: String(row['ID sản phẩm'] || 'N/A'),
-        videoTitle: String(row['Tiêu đề video'] || 'N/A'),
-        videoId: String(row['ID video'] || 'N/A'),
-        tiktokAccount: String(tiktokAccountVal),
-        creativeType: String(row['Loại nội dung sáng tạo'] || 'N/A'),
-        cost, gmv,
-        roi: roiVal || (cost > 0 ? gmv/cost : 0),
-        impressions, clicks,
-        ctr: this.parseNumber(row['Tỷ lệ nhấp vào quảng cáo sản phẩm'] || row['CTR']),
-        cvr: this.parseNumber(row['Tỷ lệ chuyển đổi quảng cáo'] || row['CVR']),
-        orders,
-        costPerOrder: costPerOrderVal || (orders > 0 ? cost / orders : 0),
-        videoViewRate2s: this.parseNumber(row['Tỷ lệ xem video quảng cáo trong 2 giây']),
-        videoViewRate6s: this.parseNumber(row['Tỷ lệ xem video quảng cáo trong 6 giây']),
-        videoViewRate25p: this.parseNumber(row['Tỷ lệ xem 25% thời lượng video quảng cáo']),
-        videoViewRate50p: this.parseNumber(row['Tỷ lệ xem 50% thời lượng video quảng cáo']),
-        videoViewRate75p: this.parseNumber(row['Tỷ lệ xem 75% thời lượng video quảng cáo']),
-        videoViewRate100p: this.parseNumber(row['Tỷ lệ xem 100% thời lượng video quảng cáo']),
-        cir: gmv > 0 ? (cost / gmv) * 100 : 0,
-        cpc: clicks > 0 ? cost / clicks : 0,
+      campaignName: String(this.getRowValue(row, cols.campaign) || 'N/A'),
+      productId: String(this.getRowValue(row, cols.product) || 'N/A'),
+      videoTitle: String(this.getRowValue(row, ['Tiêu đề video', 'Video Title']) || 'N/A'),
+      videoId: String(this.getRowValue(row, cols.video) || 'N/A'),
+      tiktokAccount: String(tiktokAccountVal),
+      creativeType: String(this.getRowValue(row, ['Loại nội dung sáng tạo', 'Creative Type']) || 'N/A'),
+      cost,
+      gmv,
+      roi: roiVal || (cost > 0 ? gmv / cost : 0),
+      impressions,
+      clicks,
+      ctr: this.parseNumber(this.getRowValue(row, cols.ctr)),
+      cvr: this.parseNumber(this.getRowValue(row, cols.cvr)),
+      orders,
+      costPerOrder: costPerOrderVal || (orders > 0 ? cost / orders : 0),
+      videoViewRate2s: this.parseNumber(this.getRowValue(row, cols.videoViewRate2s)),
+      videoViewRate6s: this.parseNumber(this.getRowValue(row, cols.videoViewRate6s)),
+      videoViewRate25p: this.parseNumber(this.getRowValue(row, cols.videoViewRate25p)),
+      videoViewRate50p: this.parseNumber(this.getRowValue(row, cols.videoViewRate50p)),
+      videoViewRate75p: this.parseNumber(this.getRowValue(row, cols.videoViewRate75p)),
+      videoViewRate100p: this.parseNumber(this.getRowValue(row, cols.videoViewRate100p)),
+      cir: gmv > 0 ? (cost / gmv) * 100 : 0,
+      cpc: clicks > 0 ? cost / clicks : 0,
     };
   }
 
   private mapOrderData(row: any): OrderData {
     return {
-      order_id: String(row["ID đơn hàng"] || ''),
-      product_id: String(row["ID sản phẩm"] || ''),
-      product_name: String(row["Tên sản phẩm"] || ''),
-      seller_sku: String(row["Sku người bán"] || ''),
-      revenue: this.parseNumber(row["Payment Amount"]),
-      koc_username: String(row["Tên người dùng nhà sáng tạo"] || ''),
-      video_id: String(row["Id nội dung"] || ''),
-      commission: this.parseNumber(row["Thanh toán hoa hồng thực tế"]),
-      status: String(row["Trạng thái đơn hàng"] || ''),
-      return_status: String(row["Trả hàng & hoàn tiền"] || ''),
-      quantity: this.parseNumber(row["Số lượng"] || 1),
+      order_id: String(this.getRowValue(row, ['ID đơn hàng', 'Order ID']) || ''),
+      product_id: String(this.getRowValue(row, ['ID sản phẩm', 'Product ID']) || ''),
+      product_name: String(this.getRowValue(row, ['Tên sản phẩm', 'Product Name']) || ''),
+      seller_sku: String(this.getRowValue(row, ['Sku người bán', 'Seller SKU', 'SKU']) || ''),
+      revenue: this.parseNumber(this.getRowValue(row, ['Payment Amount', 'Doanh thu', 'Giá'])),
+      koc_username: String(this.getRowValue(row, ['Tên người dùng nhà sáng tạo', 'Creator Name']) || ''),
+      video_id: String(this.getRowValue(row, ['Id nội dung', 'Content ID']) || ''),
+      commission: this.parseNumber(this.getRowValue(row, ['Thanh toán hoa hồng thực tế', 'Commission'])),
+      status: String(this.getRowValue(row, ['Trạng thái đơn hàng', 'Order Status']) || ''),
+      return_status: String(this.getRowValue(row, ['Trả hàng & hoàn tiền', 'Return Status']) || ''),
+      quantity: this.parseNumber(this.getRowValue(row, ['Số lượng', 'Quantity']) || 1),
     };
   }
 
   private mapInventoryData(row: any): InventoryData {
     return {
-        inventory_sku: String(row["Mã SKU"] || ''),
-        stock: this.parseNumber(row["Toàn bộ kho khả dụng"]),
-        cogs: this.parseNumber(row["Giá vốn"]),
-        name: String(row["Tên"] || ''),
+      inventory_sku: String(this.getRowValue(row, ['Mã SKU', 'SKU Code', 'SKU']) || ''),
+      name: String(this.getRowValue(row, ['Tên', 'Product Name']) || ''),
+      stock: this.parseNumber(this.getRowValue(row, ['Toàn bộ kho khả dụng', 'Available Stock', 'Tồn kho'])),
+      cogs: this.parseNumber(this.getRowValue(row, ['Giá vốn', 'Cost Price', 'COGS'])),
     };
   }
 

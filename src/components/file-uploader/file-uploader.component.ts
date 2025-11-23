@@ -59,12 +59,12 @@ export class FileUploaderComponent {
     this.isLoading.set(true);
     
     try {
-      // GỌI SERVICE ĐỂ XỬ LÝ FILE THÔNG MINH (TỰ TÌM HEADER)
+      // Gọi Service xử lý
       await this.financialsService.processAndLoadAdsFile(file);
       this.authService.incrementFileUploadCount();
-    } catch (error) {
-      console.error(error);
-      // Lỗi đã được hiển thị trong Service
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      // Lỗi đã được set vào dataService.error bởi financialsService, UI sẽ tự hiển thị
     } finally {
       this.isLoading.set(false);
     }
