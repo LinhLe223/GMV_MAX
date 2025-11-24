@@ -314,37 +314,38 @@ export class DataService {
   });
 
   loadData(data: TiktokAd[], fileName: string) {
-    // 1. Validate & Clean data
-    const sanitizedData = data.map(ad => {
-        const newAd = {...ad};
-        newAd.tiktokAccount = (newAd.tiktokAccount || 'Unknown').toLowerCase().trim();
-        return newAd;
-    });
+    // 1. Clean data (Normalize)
+    const sanitizedData = data.map(ad => ({
+      ...ad,
+      tiktokAccount: (ad.tiktokAccount || 'Unknown').toLowerCase().trim()
+    }));
   
-    // 2. Set data into memory (App will run immediately)
+    // 2. Set data into Signal (Important: This must run first for the app to have data)
     this.rawData.set(sanitizedData);
     this.fileName.set(fileName);
     this.error.set(null);
   
-    // 3. Try to save cache (Optional)
+    // 3. Safe Cache
     try {
-        // Only save a maximum of 2000 rows to avoid filling up storage
-        const dataToCache = sanitizedData.length > 2000 ? sanitizedData.slice(0, 2000) : sanitizedData;
-        
-        const cache = {
-            fileName: fileName,
-            data: JSON.stringify(dataToCache),
-            isPartial: sanitizedData.length > 2000 // Flag if only partial data is cached
-        };
-        localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(cache));
-        
-        if (sanitizedData.length > 2000) {
-          console.warn('File is too large, only caching the first 2000 rows for the next session.');
-        }
-    } catch(e) {
-        // If a Quota error occurs, just log a warning and clear old cache. DO NOT show a UI error that blocks the user.
-        console.warn("LocalStorage is full. The app will continue to run normally but will not be cached for the next session.");
-        localStorage.removeItem(DATA_CACHE_KEY);
+      // Only save the first 1000 rows to avoid quota issues
+      const CACHE_LIMIT = 1000; 
+      const dataToCache = sanitizedData.slice(0, CACHE_LIMIT);
+      
+      const cache = {
+        fileName: fileName,
+        data: JSON.stringify(dataToCache),
+        isTruncated: sanitizedData.length > CACHE_LIMIT
+      };
+      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(cache));
+      
+      if (sanitizedData.length > CACHE_LIMIT) {
+        console.warn(`File is large (${sanitizedData.length} rows). Caching only the first ${CACHE_LIMIT} rows to save memory.`);
+      }
+    } catch (e) {
+      // Catch Quota Exceeded error and fail gracefully
+      console.warn("LocalStorage is full. The app will run normally but will not be cached for the next session.");
+      // Clear old cache to free up memory
+      try { localStorage.removeItem(DATA_CACHE_KEY); } catch(err) {} 
     }
   }
 

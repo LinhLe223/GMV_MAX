@@ -49,8 +49,17 @@ export class ActionPlanComponent {
     const plan = this.selectedPlan();
     if (!plan) return null;
     try {
-      return JSON.parse(plan.ai_response_content);
-    } catch {
+      const parsed = JSON.parse(plan.ai_response_content);
+      // Defensively add missing properties to conform to the AIPlan interface
+      // This prevents template errors if the AI response was incomplete.
+      return {
+        productStrategy: Array.isArray(parsed.productStrategy) ? parsed.productStrategy : [],
+        creativeScalingPlan: Array.isArray(parsed.creativeScalingPlan) ? parsed.creativeScalingPlan : [],
+        summary: parsed.summary || { estimatedDailyBudget: 0, knowledgeSummary: '', overallStrategy: '' },
+        financialProjection: parsed.financialProjection || { scaleUpBudgetSuggestion: '', boosterAdsSuggestion: '', roadmapTable: [] },
+      };
+    } catch (e) {
+      console.error("Failed to parse plan content:", e);
       return null;
     }
   });

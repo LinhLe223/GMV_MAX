@@ -1,5 +1,6 @@
 
 
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem, GodModeItem, CostStructure, KocOrderItemDetail } from '../models/financial.model';
@@ -461,7 +462,7 @@ export class FinancialsService {
       const wb: XLSX.WorkBook = XLSX.read(buffer, { type: 'array' });
       const wsname: string = wb.SheetNames[0];
       const ws: XLSX.WorkBook['Sheets'][string] = wb.Sheets[wsname];
-      const rowsPreview: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, range: 'A1:Z20' });
+      const rowsPreview: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, range: 'A1:Z50' });
       let headerRowIndex = -1;
       for (let i = 0; i < rowsPreview.length; i++) {
         const row = rowsPreview[i];
@@ -476,13 +477,16 @@ export class FinancialsService {
         throw new Error(`Không tìm thấy cột bắt buộc trong file "${file.name}". Hãy kiểm tra lại mẫu file.`);
       }
       const rawData: any[] = XLSX.utils.sheet_to_json(ws, { range: headerRowIndex });
-      const cleanedData = rawData.map(row => 
-        Object.fromEntries(
-          Object.entries(row).map(([key, value]) => [key.trim().replace(/\ufeff/g, ''), value])
-        )
-      );
-      if (mapper) return cleanedData.map(mapper);
-      return cleanedData;
+      
+      return rawData.map(row => {
+        const cleanRow: any = {};
+        for (const key in row) {
+          const cleanKey = key.trim().replace(/\ufeff/g, '');
+          cleanRow[cleanKey] = (row as any)[key];
+        }
+        return mapper ? mapper(cleanRow) : cleanRow;
+      });
+
     } catch (error) {
         const err = error as Error;
         console.error(err);
@@ -490,21 +494,25 @@ export class FinancialsService {
     }
   }
 
-  // --- NEW HELPER: For finding columns intelligently ---
-  // This function can find a value regardless of whether the column name is 'Chi phí', 'CHI PHÍ', 'Cost', or 'Chi phí '
   private getRowValue(row: any, possibleKeys: string[]): any {
-    // 1. Normalize the keys of the current row to: lowercase_trim
+    if (!row) return null;
+    
     const normalizedRowKeys = Object.keys(row).reduce((acc, key) => {
-      acc[key.toLowerCase().trim()] = key; 
+      const cleanKey = key.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-z0-9]/g, ""); // Remove special chars & spaces
+      acc[cleanKey] = key; 
       return acc;
     }, {} as any);
   
-    // 2. Iterate through the desired keys
     for (const key of possibleKeys) {
-      const searchKey = key.toLowerCase().trim();
-      const foundKey = normalizedRowKeys[searchKey];
-      if (foundKey && row[foundKey] != null && row[foundKey] !== '') {
-        return row[foundKey];
+      const searchKey = key.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "");
+        
+      const foundOriginalKey = normalizedRowKeys[searchKey];
+      if (foundOriginalKey && row[foundOriginalKey] != null && row[foundOriginalKey] !== '') {
+        return row[foundOriginalKey];
       }
     }
     return null;
@@ -512,9 +520,9 @@ export class FinancialsService {
 
   private mapAdsData(row: any): TiktokAd {
     const cols = {
-      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi', 'Total Cost'],
-      gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu'],
-      koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name', 'Account'],
+      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi', 'Total Cost', 'Amount Spent'],
+      gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu', 'Revenue'],
+      koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name', 'Account', 'Tai khoan TikTok', 'Username'],
       imp: ['Số lượt hiển thị', 'Impressions', 'Lượt xem', 'Views'],
       click: ['Số lượt nhấp', 'Clicks', 'Lượt nhấp'],
       roi: ['ROI', 'Return on Ad Spend'],
