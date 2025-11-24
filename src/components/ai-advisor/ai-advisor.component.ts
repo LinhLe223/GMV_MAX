@@ -2,6 +2,7 @@
 
 
 
+
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, ElementRef, viewChild, effect, afterNextRender } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GeminiService } from '../../services/gemini.service';
@@ -324,7 +325,16 @@ export class AiAdvisorComponent implements OnInit {
       const safePlan: AIPlan = {
         productStrategy: Array.isArray(parsedPlan.productStrategy) ? parsedPlan.productStrategy : [],
         creativeScalingPlan: (Array.isArray(parsedPlan.creativeScalingPlan) ? parsedPlan.creativeScalingPlan : [])
-          .map(item => ({ ...item, status: 'accepted' })),
+          .map(item => ({
+            videoId: item?.videoId || 'N/A',
+            videoTitle: item?.videoTitle || 'Unknown Title',
+            roi: item?.roi || 0,
+            gmv: item?.gmv || 0,
+            cost: item?.cost || 0,
+            action: item?.action || 'MONITOR',
+            reasoning: item?.reasoning || 'No reasoning provided.',
+            status: 'accepted'
+          })),
         summary: parsedPlan.summary || { estimatedDailyBudget: 0, knowledgeSummary: '', overallStrategy: '' },
         financialProjection: parsedPlan.financialProjection || { scaleUpBudgetSuggestion: '', boosterAdsSuggestion: '', roadmapTable: [] },
       };
@@ -379,7 +389,7 @@ export class AiAdvisorComponent implements OnInit {
     }
 
     return {
-      videosToScale: acceptedActions.filter(a => a.action.startsWith('SCALE')).length,
+      videosToScale: acceptedActions.filter(a => a.action?.startsWith('SCALE')).length,
       videosToMonitor: acceptedActions.filter(a => a.action === 'MONITOR').length,
       videosToPause: acceptedActions.filter(a => a.action === 'PAUSE' || a.action === 'OPTIMIZE_COST').length,
       estimatedDailyBudget: adjustedBudget,

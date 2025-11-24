@@ -50,11 +50,20 @@ export class ActionPlanComponent {
     if (!plan) return null;
     try {
       const parsed = JSON.parse(plan.ai_response_content);
-      // Defensively add missing properties to conform to the AIPlan interface
-      // This prevents template errors if the AI response was incomplete.
+      // Defensively parse the plan to prevent runtime errors from incomplete AI responses.
       return {
         productStrategy: Array.isArray(parsed.productStrategy) ? parsed.productStrategy : [],
-        creativeScalingPlan: Array.isArray(parsed.creativeScalingPlan) ? parsed.creativeScalingPlan : [],
+        creativeScalingPlan: (Array.isArray(parsed.creativeScalingPlan) ? parsed.creativeScalingPlan : [])
+          .map((item: any) => ({
+            videoId: item?.videoId || 'N/A',
+            videoTitle: item?.videoTitle || 'Unknown Title',
+            roi: item?.roi || 0,
+            gmv: item?.gmv || 0,
+            cost: item?.cost || 0,
+            action: item?.action || 'MONITOR',
+            reasoning: item?.reasoning || 'No reasoning provided.',
+            status: item?.status || 'accepted'
+          })),
         summary: parsed.summary || { estimatedDailyBudget: 0, knowledgeSummary: '', overallStrategy: '' },
         financialProjection: parsed.financialProjection || { scaleUpBudgetSuggestion: '', boosterAdsSuggestion: '', roadmapTable: [] },
       };

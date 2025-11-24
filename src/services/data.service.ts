@@ -314,37 +314,39 @@ export class DataService {
   });
 
   loadData(data: TiktokAd[], fileName: string) {
-    // 1. Clean data (Normalize)
+    // 1. Clean data (Chuẩn hóa)
     const sanitizedData = data.map(ad => ({
       ...ad,
       tiktokAccount: (ad.tiktokAccount || 'Unknown').toLowerCase().trim()
     }));
   
-    // 2. Set data into Signal (Important: This must run first for the app to have data)
+    // 2. Set dữ liệu vào Signal NGAY LẬP TỨC (Để App chạy được trong phiên này)
     this.rawData.set(sanitizedData);
     this.fileName.set(fileName);
     this.error.set(null);
   
-    // 3. Safe Cache
+    // 3. Lưu Cache An Toàn (Chống Crash)
     try {
-      // Only save the first 1000 rows to avoid quota issues
+      // Chỉ lưu tối đa 1000 dòng để tránh full quota
       const CACHE_LIMIT = 1000; 
-      const dataToCache = sanitizedData.slice(0, CACHE_LIMIT);
+      const dataToCache = sanitizedData.length > CACHE_LIMIT ? sanitizedData.slice(0, CACHE_LIMIT) : sanitizedData;
       
       const cache = {
         fileName: fileName,
         data: JSON.stringify(dataToCache),
         isTruncated: sanitizedData.length > CACHE_LIMIT
       };
+      
+      // Thử lưu
       localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(cache));
       
       if (sanitizedData.length > CACHE_LIMIT) {
-        console.warn(`File is large (${sanitizedData.length} rows). Caching only the first ${CACHE_LIMIT} rows to save memory.`);
+        console.warn(`⚠️ File quá lớn (${sanitizedData.length} dòng). Chỉ cache ${CACHE_LIMIT} dòng đầu để tiết kiệm bộ nhớ.`);
       }
     } catch (e) {
-      // Catch Quota Exceeded error and fail gracefully
-      console.warn("LocalStorage is full. The app will run normally but will not be cached for the next session.");
-      // Clear old cache to free up memory
+      // QUAN TRỌNG: Bắt lỗi Quota và bỏ qua nhẹ nhàng
+      console.warn("⚠️ LocalStorage đã đầy. Ứng dụng vẫn hoạt động nhưng sẽ không lưu cache cho lần sau.");
+      // Xóa cache cũ để giải phóng bộ nhớ nếu cần
       try { localStorage.removeItem(DATA_CACHE_KEY); } catch(err) {} 
     }
   }

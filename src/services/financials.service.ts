@@ -1,6 +1,5 @@
 
 
-
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem, GodModeItem, CostStructure, KocOrderItemDetail } from '../models/financial.model';
@@ -520,8 +519,8 @@ export class FinancialsService {
 
   private mapAdsData(row: any): TiktokAd {
     const cols = {
-      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi', 'Total Cost', 'Amount Spent'],
-      gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu', 'Revenue'],
+      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi', 'Total Cost', 'Amount Spent', 'Chi phí quảng cáo'],
+      gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu', 'Revenue', 'Tổng doanh thu'],
       koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name', 'Account', 'Tai khoan TikTok', 'Username'],
       imp: ['Số lượt hiển thị', 'Impressions', 'Lượt xem', 'Views'],
       click: ['Số lượt nhấp', 'Clicks', 'Lượt nhấp'],
