@@ -1,8 +1,5 @@
 
 
-
-
-
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, ElementRef, viewChild, effect, afterNextRender } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GeminiService } from '../../services/gemini.service';
@@ -198,7 +195,7 @@ export class AiAdvisorComponent implements OnInit {
         if (highStockItems.length > 0) {
           financialContext += `\n[CHIẾN LƯỢC XẢ KHO]\nCác sản phẩm sau đang có lượng tồn kho rất cao. Ưu tiên đề xuất ngân sách và ý tưởng để đẩy mạnh xả kho cho các mã SKU này:\n`;
           highStockItems.forEach(item => {
-            financialContext += `- SKU: ${item.inventory_sku}, Tồn kho: ${item.stock}\n`;
+            financialContext += `- SKU: ${item.sku}, Tồn kho: ${item.stock}\n`;
           });
         }
       }
@@ -315,32 +312,15 @@ export class AiAdvisorComponent implements OnInit {
         fullResponse += chunk;
       }
       
+      // Check for error messages from GeminiService before parsing
       if (fullResponse.startsWith('Lỗi:') || fullResponse.startsWith('Đã xảy ra lỗi')) {
         throw new Error(fullResponse);
       }
       
-      const parsedPlan: Partial<AIPlan> = JSON.parse(fullResponse);
-
-      // Defensively ensure all parts of the plan exist to prevent runtime errors
-      const safePlan: AIPlan = {
-        productStrategy: Array.isArray(parsedPlan.productStrategy) ? parsedPlan.productStrategy : [],
-        creativeScalingPlan: (Array.isArray(parsedPlan.creativeScalingPlan) ? parsedPlan.creativeScalingPlan : [])
-          .map(item => ({
-            videoId: item?.videoId || 'N/A',
-            videoTitle: item?.videoTitle || 'Unknown Title',
-            roi: item?.roi || 0,
-            gmv: item?.gmv || 0,
-            cost: item?.cost || 0,
-            action: item?.action || 'MONITOR',
-            reasoning: item?.reasoning || 'No reasoning provided.',
-            status: 'accepted'
-          })),
-        summary: parsedPlan.summary || { estimatedDailyBudget: 0, knowledgeSummary: '', overallStrategy: '' },
-        financialProjection: parsedPlan.financialProjection || { scaleUpBudgetSuggestion: '', boosterAdsSuggestion: '', roadmapTable: [] },
-      };
-      
-      this.plan.set(safePlan);
-      this.enterpriseService.activeAdvisorPlan.set(safePlan); // Save to service for persistence
+      const parsedPlan: AIPlan = JSON.parse(fullResponse);
+      parsedPlan.creativeScalingPlan = parsedPlan.creativeScalingPlan.map(item => ({ ...item, status: 'accepted' }));
+      this.plan.set(parsedPlan);
+      this.enterpriseService.activeAdvisorPlan.set(parsedPlan); // Save to service for persistence
 
     } catch (e) {
       const errorMessage = (e instanceof Error) ? e.message : 'An unexpected error occurred.';
@@ -356,13 +336,11 @@ export class AiAdvisorComponent implements OnInit {
       if (!currentPlan) return null;
       const newPlan = {
         ...currentPlan,
-        creativeScalingPlan: currentPlan.creativeScalingPlan.map(item => {
-          if (item.videoId !== videoId) {
-            return item;
-          }
-          const newStatus: 'accepted' | 'rejected' = item.status === 'accepted' ? 'rejected' : 'accepted';
-          return { ...item, status: newStatus };
-        })
+        creativeScalingPlan: currentPlan.creativeScalingPlan.map(item => 
+          item.videoId === videoId 
+            ? { ...item, status: item.status === 'accepted' ? 'rejected' : 'accepted' }
+            : item
+        )
       };
       this.enterpriseService.activeAdvisorPlan.set(newPlan); // Keep service state in sync
       return newPlan;
@@ -389,7 +367,7 @@ export class AiAdvisorComponent implements OnInit {
     }
 
     return {
-      videosToScale: acceptedActions.filter(a => a.action?.startsWith('SCALE')).length,
+      videosToScale: acceptedActions.filter(a => a.action.startsWith('SCALE')).length,
       videosToMonitor: acceptedActions.filter(a => a.action === 'MONITOR').length,
       videosToPause: acceptedActions.filter(a => a.action === 'PAUSE' || a.action === 'OPTIMIZE_COST').length,
       estimatedDailyBudget: adjustedBudget,

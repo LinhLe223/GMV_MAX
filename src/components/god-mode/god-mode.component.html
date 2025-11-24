@@ -1,182 +1,264 @@
-<div class="p-6 bg-gray-50 min-h-screen">
-  
-  @let summary = summary();
-  <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-    <h2 class="text-gray-500 font-bold text-xs uppercase tracking-wide mb-3">Sức Khỏe Dòng Tiền (P&L Overview)</h2>
-    <div class="grid grid-cols-5 gap-4 text-center divide-x">
-      <div>
-        <div class="text-xs text-gray-400">Doanh Thu (GMV)</div>
-        <div class="text-lg font-bold text-gray-800">{{ summary.totalRevenue | number }}</div>
+<div class="space-y-8">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">🏆 GOD MODE - Trung tâm Chỉ huy</h2>
+    <p class="mt-1 text-sm text-gray-500">Dữ liệu hợp nhất từ Ads, Đơn hàng, và Tồn kho để đưa ra "Sự thật Cuối cùng": Lợi Nhuận Ròng.</p>
+  </div>
+
+  <!-- Financial Health Bar -->
+  @if(financialHealthBarData(); as health) {
+    <div class="bg-white p-4 rounded-lg shadow border">
+        <h3 class="text-sm font-medium text-gray-700 mb-2">Sức Khỏe Dòng Tiền (NMV: {{ health.totalNmv | number:'1.0-0' }} đ)</h3>
+        <div class="w-full flex h-6 rounded-full overflow-hidden text-xs text-white font-semibold">
+            <div class="flex items-center justify-center bg-blue-500" [style.width.%]="health.cogsPercent" title="Giá vốn: {{ health.cogsPercent | number:'1.1-1' }}%">COGS</div>
+            <div class="flex items-center justify-center bg-red-500" [style.width.%]="health.adsPercent" title="Chi phí Ads: {{ health.adsPercent | number:'1.1-1' }}%">ADS</div>
+            <div class="flex items-center justify-center bg-yellow-500" [style.width.%]="health.feesPercent" title="Phí & Hoa hồng: {{ health.feesPercent | number:'1.1-1' }}%">PHÍ</div>
+            <div class="flex items-center justify-center" [class]="health.netProfitPercent >= 0 ? 'bg-green-500' : 'bg-gray-700'" [style.width.%]="health.netProfitPercent >= 0 ? health.netProfitPercent : 100 - health.cogsPercent - health.adsPercent - health.feesPercent" [title]="'Lợi nhuận: ' + (health.netProfitPercent | number:'1.1-1') + '%'">
+                @if(health.netProfitPercent >= 5) { LÃI }
+            </div>
+        </div>
+    </div>
+  }
+
+  <!-- V2: Executive Summary -->
+  @if(summary(); as s) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+        <div class="text-gray-500 text-sm">Doanh Thu Thực (NMV)</div>
+        <div class="text-2xl font-bold text-blue-700">{{ s.totalNMV | number:'1.0-0' }} ₫</div>
+        <div class="text-xs text-gray-400">GMV (Đơn): {{ s.totalRevenue | number:'1.0-0' }} ₫</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-400">Thực Thu (NMV)</div>
-        <div class="text-lg font-bold text-blue-600">{{ summary.totalNMV | number }}</div>
+      
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+        <div class="text-gray-500 text-sm">Lợi Nhuận Ròng</div>
+        <div class="text-2xl font-bold" [class.text-red-600]="s.totalNetProfit < 0" [class.text-green-600]="s.totalNetProfit >= 0">
+          {{ s.totalNetProfit | number:'1.0-0' }} ₫
+        </div>
+        <div class="text-xs text-gray-400">Từ {{ s.totalNMV | number:'1.0-0' }} đ NMV</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-400">Tổng Chi Phí Ads</div>
-        <div class="text-lg font-bold text-red-500">{{ summary.totalAdsCost | number }}</div>
+
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+        <div class="text-gray-500 text-sm">Hiệu Quả KOC</div>
+        <div class="text-2xl font-bold">{{ s.activeKoc }} / {{ s.totalKoc }}</div>
+        <div class="text-xs text-gray-400">Đang ra đơn</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-400">Tổng Giá Vốn</div>
-        <div class="text-lg font-bold text-gray-600">{{ summary.totalCOGS | number }}</div>
+
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+        <div class="text-gray-500 text-sm">Tỷ Lệ Hoàn/Hủy</div>
+        <div class="text-2xl font-bold text-red-600">{{ s.avgReturnRate | number:'1.1-1' }}%</div>
+        <div class="text-xs text-gray-400">Trên tổng đơn</div>
       </div>
-      <div>
-        <div class="text-xs text-gray-400">Lợi Nhuận Ròng</div>
-        <div class="text-xl font-black" 
-             [class.text-green-600]="summary.totalNetProfit > 0" 
-             [class.text-red-600]="summary.totalNetProfit < 0">
-          {{ summary.totalNetProfit | number }}
+    </div>
+  }
+
+  <!-- V2: AI Assistant -->
+  <div class="bg-indigo-50 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div>
+      <h3 class="font-bold text-indigo-800">🤖 Trợ lý AI Phân tích & Đề xuất</h3>
+      <p class="text-xs text-indigo-600">Chọn chế độ phân tích phù hợp với nhu cầu của bạn</p>
+    </div>
+    <div class="flex gap-2">
+      <button (click)="analyzeAI('fast')" [disabled]="isAnalyzing()" class="px-4 py-2 bg-green-100 text-green-800 rounded-full hover:bg-green-200 border border-green-300 flex flex-col items-center disabled:opacity-50 disabled:cursor-wait">
+        <span class="font-bold">🚀 Nhanh</span>
+        <span class="text-[10px]">Gemini 2.5 Flash</span>
+      </button>
+      <button (click)="analyzeAI('standard')" [disabled]="isAnalyzing()" class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full hover:bg-blue-200 border border-blue-300 flex flex-col items-center disabled:opacity-50 disabled:cursor-wait">
+        <span class="font-bold">⚖️ Tiêu Chuẩn</span>
+        <span class="text-[10px]">Gemini 2.5 Pro</span>
+      </button>
+      <button (click)="analyzeAI('deep')" [disabled]="isAnalyzing()" class="px-4 py-2 bg-purple-100 text-purple-800 rounded-full hover:bg-purple-200 border border-purple-300 flex flex-col items-center disabled:opacity-50 disabled:cursor-wait">
+        <span class="font-bold">🧠 Chuyên Sâu</span>
+        <span class="text-[10px]">Gemini 2.5 Pro</span>
+      </button>
+    </div>
+  </div>
+
+  @if (isAnalyzing() || aiResult() || aiError()) {
+    <div class="p-5 border border-gray-200 rounded-2xl bg-white shadow-sm min-h-[6rem]">
+      @if (isAnalyzing() && !aiResult()) {
+        <div class="flex items-center text-gray-500">
+            <svg class="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <span>AI đang "suy nghĩ", vui lòng chờ trong giây lát...</span>
+        </div>
+      } @else if (aiError()) {
+        <div class="text-red-600">{{ aiError() }}</div>
+      } @else if (aiResult() !== null) {
+        <div class="prose prose-sm max-w-none text-gray-700" [innerHTML]="formatResponse(aiResult())"></div>
+      }
+    </div>
+  }
+
+  <!-- V2: BCG Matrix -->
+  <div class="mb-6">
+    <h3 class="font-bold text-gray-700 mb-2">📊 Phân loại KOC (Ma trận BCG)</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div (click)="filterBcg('STAR')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-yellow-50 border-yellow-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'STAR'" [class.ring-yellow-300]="activeBcgFilter() === 'STAR'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'STAR'">
+        <div class="absolute top-2 right-2 text-2xl">⭐</div>
+        <h4 class="font-bold text-yellow-800">NGÔI SAO</h4>
+        <div class="text-xs text-gray-600">Lợi nhuận Cao - GMV Cao</div>
+        <div class="mt-2 font-bold text-lg text-yellow-900">{{ bcgGroups().STAR.length }} KOC</div>
+        <div class="text-xs mt-1 text-gray-500 truncate h-4">
+          @for(k of bcgGroups().STAR.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
+        </div>
+      </div>
+       <div (click)="filterBcg('QUESTION')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-blue-50 border-blue-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'QUESTION'" [class.ring-blue-300]="activeBcgFilter() === 'QUESTION'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'QUESTION'">
+        <div class="absolute top-2 right-2 text-2xl">❓</div>
+        <h4 class="font-bold text-blue-800">DẤU HỎI</h4>
+        <div class="text-xs text-gray-600">Lợi nhuận Cao - GMV Thấp</div>
+        <div class="mt-2 font-bold text-lg text-blue-900">{{ bcgGroups().QUESTION.length }} KOC</div>
+         <div class="text-xs mt-1 text-gray-500 truncate h-4">
+          @for(k of bcgGroups().QUESTION.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
+        </div>
+      </div>
+      <div (click)="filterBcg('COW')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-green-50 border-green-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'COW'" [class.ring-green-300]="activeBcgFilter() === 'COW'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'COW'">
+        <div class="absolute top-2 right-2 text-2xl">🐮</div>
+        <h4 class="font-bold text-green-800">BÒ SỮA</h4>
+        <div class="text-xs text-gray-600">Lợi nhuận Thấp - GMV Cao</div>
+        <div class="mt-2 font-bold text-lg text-green-900">{{ bcgGroups().COW.length }} KOC</div>
+         <div class="text-xs mt-1 text-gray-500 truncate h-4">
+          @for(k of bcgGroups().COW.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
+        </div>
+      </div>
+      <div (click)="filterBcg('DOG')" class="cursor-pointer transition-all p-3 rounded-lg relative border bg-gray-100 border-gray-200 hover:shadow-lg" [class.ring-4]="activeBcgFilter() === 'DOG'" [class.ring-gray-300]="activeBcgFilter() === 'DOG'" [class.opacity-50]="activeBcgFilter() && activeBcgFilter() !== 'DOG'">
+        <div class="absolute top-2 right-2 text-2xl">🐕</div>
+        <h4 class="font-bold text-gray-800">CHÓ MỰC</h4>
+        <div class="text-xs text-gray-600">Lợi nhuận Thấp - GMV Thấp</div>
+        <div class="mt-2 font-bold text-lg text-gray-900">{{ bcgGroups().DOG.length }} KOC</div>
+         <div class="text-xs mt-1 text-gray-500 truncate h-4">
+          @for(k of bcgGroups().DOG.slice(0, 5); track k.kocName){<span>{{ k.kocName }}, </span>}
         </div>
       </div>
     </div>
-    
-    <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden flex">
-      <div class="bg-red-400 h-full" [style.width.%]="(summary.totalAdsCost / summary.totalNMV) * 100" title="Ads Cost"></div>
-      <div class="bg-gray-400 h-full" [style.width.%]="(summary.totalCOGS / summary.totalNMV) * 100" title="COGS"></div>
-      <div class="bg-green-500 h-full flex-1" title="Profit"></div>
+  </div>
+
+  <div class="flex items-center justify-between">
+    <div class="flex gap-x-2 rounded-full bg-slate-100 p-1.5">
+      <button (click)="viewMode.set('koc')" [class]="viewMode() === 'koc' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:bg-slate-200/60'" class="px-5 py-2 rounded-full text-sm font-semibold transition-colors">
+        👤 Báo Cáo KOC
+      </button>
+      <button (click)="viewMode.set('product')" [class]="viewMode() === 'product' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:bg-slate-200/60'" class="px-5 py-2 rounded-full text-sm font-semibold transition-colors">
+        📦 Báo Cáo Sản Phẩm
+      </button>
     </div>
   </div>
 
-  @let bcgGroups = bcgGroups();
-  <div class="grid grid-cols-4 gap-4 mb-6">
-    <div (click)="filterBcg('STAR')" 
-         class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-         [class.ring-2]="activeBcgFilter() === 'STAR'" [class.ring-yellow-400]="activeBcgFilter() === 'STAR'">
-      <div class="text-2xl mb-1">⭐ NGÔI SAO</div>
-      <div class="text-xs text-gray-500 mb-2">Lãi Cao - Doanh số Cao</div>
-      <div class="font-bold text-xl">{{ bcgGroups.STAR?.length || 0 }} KOC</div>
-      <div class="absolute -right-4 -bottom-4 text-6xl opacity-10">★</div>
-    </div>
-    
-    <div (click)="filterBcg('COW')" class="bg-green-50 border border-green-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-         [class.ring-2]="activeBcgFilter() === 'COW'" [class.ring-green-400]="activeBcgFilter() === 'COW'">
-      <div class="text-2xl mb-1">🐮 BÒ SỮA</div>
-      <div class="text-xs text-gray-500 mb-2">Lãi Thấp - Doanh số Cao</div>
-      <div class="font-bold text-xl">{{ bcgGroups.COW?.length || 0 }} KOC</div>
-    </div>
-
-    <div (click)="filterBcg('QUESTION')" class="bg-blue-50 border border-blue-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-         [class.ring-2]="activeBcgFilter() === 'QUESTION'" [class.ring-blue-400]="activeBcgFilter() === 'QUESTION'">
-      <div class="text-2xl mb-1">❓ DẤU HỎI</div>
-      <div class="text-xs text-gray-500 mb-2">Lãi Cao - Doanh số Thấp</div>
-      <div class="font-bold text-xl">{{ bcgGroups.QUESTION?.length || 0 }} KOC</div>
-    </div>
-
-    <div (click)="filterBcg('DOG')" class="bg-gray-100 border border-gray-200 p-4 rounded-lg cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-         [class.ring-2]="activeBcgFilter() === 'DOG'" [class.ring-gray-400]="activeBcgFilter() === 'DOG'">
-      <div class="text-2xl mb-1">🐕 CHÓ MỰC</div>
-      <div class="text-xs text-gray-500 mb-2">Lỗ/Lãi Thấp - Doanh số Thấp</div>
-      <div class="font-bold text-xl">{{ bcgGroups.DOG?.length || 0 }} KOC</div>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full text-sm text-left">
-      <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
-        <tr>
-          <th class="p-3">KOC</th>
-          <th class="p-3 cursor-pointer" (click)="sortBy('adsCost')">🔴 ADS COST ⇅</th>
-          <th class="p-3 cursor-pointer" (click)="sortBy('gmv')">🔵 GMV ⇅</th>
-          <th class="p-3 cursor-pointer" (click)="sortBy('nmv')">🟢 NMV (THỰC) ⇅</th>
-          <th class="p-3 cursor-pointer" (click)="sortBy('cogs')">📦 GIÁ VỐN ⇅</th>
-          <th class="p-3 cursor-pointer" (click)="sortBy('netProfit')">💰 LỢI NHUẬN ⇅</th>
-          <th class="p-3">HÀNH ĐỘNG</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y">
-        @for (item of sortedData(); track item.mergeKey) {
-          <tr class="hover:bg-gray-50 cursor-pointer transition-colors" 
-              [class.bg-blue-50]="selectedKoc() === item"
-              (click)="selectKoc(item)">
-            <td class="p-3 font-medium text-blue-700 flex items-center gap-2">
-              @if (selectedKoc() === item) {
-                <span>▼</span>
-              } @else {
-                <span>▶</span>
-              }
-              {{ item.kocName }}
-            </td>
-            <td class="p-3 text-red-600">{{ item.adsCost | number }}</td>
-            <td class="p-3 text-gray-500">{{ item.gmv | number }}</td>
-            <td class="p-3 font-bold text-blue-600">{{ item.nmv | number }}</td>
-            <td class="p-3 text-gray-500">{{ item.cogs | number }}</td>
-            <td class="p-3 font-bold text-base" 
-                [class.text-green-600]="item.netProfit > 0" 
-                [class.text-red-600]="item.netProfit < 0">
-              {{ item.netProfit | number }}
-            </td>
-            <td class="p-3">
-              <span class="px-2 py-1 rounded text-xs font-bold"
-                    [class.bg-yellow-100]="item.bcgLabel === 'STAR'"
-                    [class.bg-green-100]="item.bcgLabel === 'COW'"
-                    [class.bg-blue-100]="item.bcgLabel === 'QUESTION'"
-                    [class.bg-gray-100]="item.bcgLabel === 'DOG'">
-                {{ item.bcgLabel }}
-              </span>
-            </td>
-          </tr>
-
-          @if (selectedKoc() === item) {
-            <tr class="bg-gray-50">
-              <td colspan="7" class="p-4">
-                <div class="mb-2 font-bold text-gray-700">Chi tiết sản phẩm & Video của {{ item.kocName }}:</div>
-                <div class="max-h-96 overflow-y-auto">
-                    <table class="w-full bg-white border text-xs rounded overflow-hidden">
-                      <thead class="bg-blue-100 sticky top-0">
-                        <tr>
-                          <th class="p-2">Video ID / Link</th>
-                          <th class="p-2">Sản Phẩm</th>
-                          <th class="p-2 text-right">Giá Bán</th>
-                          <th class="p-2 text-right">Giá Vốn</th>
-                          <th class="p-2 text-right">Hoa Hồng</th>
-                          <th class="p-2 text-right">Lãi Gộp Đơn</th>
-                          <th class="p-2 text-center">Trạng Thái</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (detail of kocDetails(); track detail.orderId) {
-                          <tr class="border-b">
-                            <td class="p-2 font-mono">
-                              @if(detail.videoId && detail.videoId !== 'N/A') {
-                                <a [href]="'https://tiktok.com/@'+item.kocName+'/video/'+detail.videoId" target="_blank" class="text-blue-500 hover:underline">
-                                  {{ detail.videoId }} 🔗
-                                </a>
-                              } @else {
-                                <span>N/A</span>
-                              }
-                            </td>
-                            <td class="p-2 max-w-xs truncate" [title]="detail.productName">{{ detail.productName }}</td>
-                            <td class="p-2 text-right">{{ detail.revenue | number }}</td>
-                            <td class="p-2 text-right text-gray-500">{{ detail.cogs | number }}</td>
-                            <td class="p-2 text-right text-gray-500">{{ detail.commission | number }}</td>
-                            <td class="p-2 text-right font-bold" [class.text-green-600]="detail.profit > 0">{{ detail.profit | number }}</td>
-                            <td class="p-2 text-center">
-                              @if (detail.isReturn) {
-                                <span class="text-red-500 font-bold">HOÀN/HỦY</span>
-                              } @else {
-                                <span class="text-green-500">Thành công</span>
-                              }
-                            </td>
-                          </tr>
-                        } @empty {
-                          <tr>
-                            <td colspan="7" class="p-4 text-center text-gray-500">Không có chi tiết đơn hàng cho KOC này.</td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                </div>
-              </td>
-            </tr>
-          }
-        } @empty {
+  <div class="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-200">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-slate-50 text-xs uppercase text-slate-600">
+           @if (viewMode() === 'koc') {
             <tr>
-              <td colspan="7" class="text-center p-8 text-gray-500">
-                Không có dữ liệu P&L để hiển thị. <br/> Vui lòng tải lên file Ads, file Đơn hàng, và file Tồn kho.
+              @for(header of [
+                { key: 'kocName', label: 'KOC' },
+                { key: 'breakEvenRoas', label: '🛡️ BE ROAS' },
+                { key: 'realRoas', label: '🚀 Real ROAS' },
+                { key: 'daysOnHand', label: '📦 Tồn (Ngày)' },
+                { key: 'returnCancelPercent', label: '📉 Hoàn/Hủy' },
+                { key: 'netProfit', label: '💰 Lãi Ròng' },
+                { key: 'aiCommand', label: '🤖 AI Lệnh' },
+                { key: 'actions', label: 'Hành động' }
+              ]; track header.key) {
+                <th (click)="onSort(header.key)" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                  <div class="flex items-center">
+                    <span>{{ header.label }}</span>
+                    @if(sortKey() === header.key) {
+                      <span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                    }
+                  </div>
+                </th>
+              }
+            </tr>
+           } @else {
+             <tr>
+              @for(header of [
+                { key: 'productName', label: 'Sản phẩm' },
+                { key: 'breakEvenRoas', label: '🛡️ BE ROAS' },
+                { key: 'realRoas', label: '🚀 Real ROAS' },
+                { key: 'daysOnHand', label: '📦 Tồn (Ngày)' },
+                { key: 'returnRate', label: '📉 Hoàn/Hủy' },
+                { key: 'netProfit', label: '💰 Lãi Ròng' },
+                { key: 'aiCommand', label: '🤖 AI Lệnh' },
+                { key: 'actions', label: 'Hành động' }
+              ]; track header.key) {
+                <th (click)="onSort(header.key)" class="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-slate-200">
+                  <div class="flex items-center">
+                    <span>{{ header.label }}</span>
+                    @if(sortKey() === header.key) {
+                      <span class="ml-1">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                    }
+                  </div>
+                </th>
+              }
+            </tr>
+           }
+        </thead>
+        <tbody class="divide-y divide-gray-200 text-sm">
+          @for(item of paginatedData(); track item.kocName || item.productId) {
+            <tr class="hover:bg-slate-50" [class.bg-red-50]="item.netProfit < 0">
+              <td class="px-4 py-3 font-medium text-indigo-600">{{ item.kocName || item.productName }}</td>
+              <td class="px-4 py-3">{{ item.breakEvenRoas === Infinity ? 'N/A' : (item.breakEvenRoas | number:'1.1-1') }}</td>
+              <td class="px-4 py-3 font-semibold" [class.text-red-600]="item.healthStatus === 'BLEEDING'">
+                {{ item.realRoas | number:'1.1-1' }}
+                @if(item.healthStatus === 'BLEEDING') {<span>💀</span>}
+              </td>
+              <td class="px-4 py-3">
+                @if(item.daysOnHand < 7) {<span class="font-bold text-red-500 animate-pulse">🚨</span>}
+                {{ item.daysOnHand === Infinity ? 'Hết hàng' : (item.daysOnHand | number:'1.0-0') }}
+              </td>
+              <td class="px-4 py-3">{{ (item.returnCancelPercent || item.returnRate) | number:'1.1-1' }}%</td>
+              <td class="px-4 py-3 font-bold" [class.text-red-600]="item.netProfit < 0" [class.text-green-600]="item.netProfit >= 0">
+                {{ item.netProfit | number:'1.0-0' }} đ
+              </td>
+              <td class="px-4 py-3 font-semibold text-xs">{{ item.aiCommand }}</td>
+              <td class="px-4 py-3">
+                <button (click)="openWarRoom(item)" class="px-2 py-1 bg-slate-200 text-slate-800 rounded-md text-xs font-semibold hover:bg-slate-300">⚡ Hành Động</button>
               </td>
             </tr>
-        }
-      </tbody>
-    </table>
+          } @empty {
+            <tr><td colspan="8" class="text-center py-10 text-gray-500">Không có dữ liệu để hiển thị.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (sortedData().length > 0) {
+      <app-pagination [totalItems]="sortedData().length" [itemsPerPage]="itemsPerPage()" [currentPage]="currentPage()" (pageChange)="onPageChange($event)" (itemsPerPageChange)="onItemsPerPageChange($event)"></app-pagination>
+    }
   </div>
 </div>
+
+<!-- War Room Modal -->
+@if (isWarRoomOpen()) {
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-40" (click)="closeWarRoom()"></div>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg" (click)="$event.stopPropagation()">
+      <div class="flex items-start justify-between p-4 border-b rounded-t">
+        <h3 class="text-xl font-semibold text-gray-900">
+          Phòng Tác chiến: <span class="text-indigo-600">{{ warRoomItem().kocName || warRoomItem().productName }}</span>
+        </h3>
+        <button type="button" (click)="closeWarRoom()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label for="action-select" class="block text-sm font-medium text-gray-700">Chọn hành động:</label>
+          <select id="action-select" [value]="warRoomAction()" (change)="warRoomAction.set($event.target.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            <option value="">-- Chọn --</option>
+            <option value="Tăng ngân sách">Tăng ngân sách</option>
+            <option value="Giảm ngân sách">Giảm ngân sách</option>
+            <option value="Dừng/Tạm dừng">Dừng/Tạm dừng</option>
+            <option value="Gửi cảnh báo">Gửi cảnh báo</option>
+            <option value="Yêu cầu tối ưu">Yêu cầu tối ưu</option>
+          </select>
+        </div>
+        <div>
+          <label for="action-notes" class="block text-sm font-medium text-gray-700">Ghi chú:</label>
+          <textarea id="action-notes" rows="3" [value]="warRoomNotes()" (input)="warRoomNotes.set($event.target.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
+        </div>
+      </div>
+      <div class="flex items-center justify-end p-4 border-t">
+        <button (click)="closeWarRoom()" type="button" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Hủy</button>
+        <button (click)="saveWarRoomAction()" type="button" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">Lưu vào Log</button>
+      </div>
+    </div>
+  </div>
+}

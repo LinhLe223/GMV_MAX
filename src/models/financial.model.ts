@@ -1,6 +1,5 @@
 
 
-
 export interface OrderData {
   order_id: string;
   koc_username: string;
@@ -59,8 +58,6 @@ export interface KocPnlData {
   // Strategic Metrics
   breakEvenRoas: number;
   daysOnHand: number;
-  daysOnHandDisplay: string;
-  stockQuantity: number;
   healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
   aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | '';
 }
@@ -82,9 +79,8 @@ export interface KocDetailItem {
   videoName: string;
   productName: string;
   productId: string;
-  nmv: number;
+  revenue: number;
   cost: number;
-  profit: number;
   returnCount: number;
   commission: number;
   roi: number;
@@ -110,37 +106,6 @@ export interface ProductPnlData {
   breakEvenRoas: number;
   realRoas: number;
   daysOnHand: number;
-  daysOnHandDisplay: string;
-  stockQuantity: number;
   healthStatus: 'BLEEDING' | 'HEALTHY' | 'NEUTRAL';
   aiCommand: 'SCALE' | 'OPTIMIZE' | 'KILL' | 'MAINTAIN' | 'INVENTORY_ALERT' | 'STOCK_OUT' | '';
-}
-
-export interface GodModeItem {
-  kocName: string;
-  mergeKey: string;
-  adsCost: number;
-  gmv: number;
-  nmv: number;
-  commission: number;
-  totalOrders: number;
-  returnCount: number;
-  cogs: number;
-  netProfit: number;
-  realRoas: number;
-  returnRate: number;
-  bcgLabel?: 'STAR' | 'COW' | 'QUESTION' | 'DOG';
-}
-
-export interface KocOrderItemDetail {
-  orderId: string;
-  productName: string;
-  sku: string;
-  videoId?: string;
-  revenue: number;
-  cogs: number;
-  commission: number;
-  profit: number;
-  status: string;
-  isReturn: boolean;
 }

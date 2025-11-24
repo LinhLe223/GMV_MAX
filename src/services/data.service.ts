@@ -1,5 +1,4 @@
 
-
 import { Injectable, signal, computed } from '@angular/core';
 import { TiktokAd } from '../models/tiktok-ad.model';
 
@@ -314,40 +313,34 @@ export class DataService {
   });
 
   loadData(data: TiktokAd[], fileName: string) {
-    // 1. Clean data (Chuẩn hóa)
-    const sanitizedData = data.map(ad => ({
-      ...ad,
-      tiktokAccount: (ad.tiktokAccount || 'Unknown').toLowerCase().trim()
-    }));
-  
-    // 2. Set dữ liệu vào Signal NGAY LẬP TỨC (Để App chạy được trong phiên này)
+    // Sanitize data before setting it. This ensures consistency for merging.
+    const sanitizedData = data.map(ad => {
+        const newAd = {...ad};
+        newAd.tiktokAccount = (newAd.tiktokAccount || 'Unknown').toLowerCase().trim();
+        return newAd;
+    });
+
     this.rawData.set(sanitizedData);
     this.fileName.set(fileName);
     this.error.set(null);
-  
-    // 3. Lưu Cache An Toàn (Chống Crash)
+
     try {
-      // Chỉ lưu tối đa 1000 dòng để tránh full quota
-      const CACHE_LIMIT = 1000; 
-      const dataToCache = sanitizedData.length > CACHE_LIMIT ? sanitizedData.slice(0, CACHE_LIMIT) : sanitizedData;
-      
-      const cache = {
-        fileName: fileName,
-        data: JSON.stringify(dataToCache),
-        isTruncated: sanitizedData.length > CACHE_LIMIT
-      };
-      
-      // Thử lưu
-      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(cache));
-      
-      if (sanitizedData.length > CACHE_LIMIT) {
-        console.warn(`⚠️ File quá lớn (${sanitizedData.length} dòng). Chỉ cache ${CACHE_LIMIT} dòng đầu để tiết kiệm bộ nhớ.`);
-      }
-    } catch (e) {
-      // QUAN TRỌNG: Bắt lỗi Quota và bỏ qua nhẹ nhàng
-      console.warn("⚠️ LocalStorage đã đầy. Ứng dụng vẫn hoạt động nhưng sẽ không lưu cache cho lần sau.");
-      // Xóa cache cũ để giải phóng bộ nhớ nếu cần
-      try { localStorage.removeItem(DATA_CACHE_KEY); } catch(err) {} 
+        const cache = {
+            fileName: fileName,
+            data: JSON.stringify(sanitizedData) // Save sanitized data to cache
+        };
+        const cacheString = JSON.stringify(cache);
+        localStorage.setItem(DATA_CACHE_KEY, cacheString);
+    } catch(e) {
+        // Check if the error is a QuotaExceededError, which happens when localStorage is full.
+        if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+            console.warn(`LocalStorage quota exceeded. Data from "${fileName}" is too large and will not be cached for the next session.`);
+            // If caching fails, it's crucial to remove any old (potentially smaller) cache
+            // to prevent loading stale data on the next visit.
+            localStorage.removeItem(DATA_CACHE_KEY);
+        } else {
+            console.error("Could not save data to cache", e);
+        }
     }
   }
 

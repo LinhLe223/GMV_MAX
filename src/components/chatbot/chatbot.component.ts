@@ -1,4 +1,3 @@
-
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit, ElementRef, viewChild, afterNextRender, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GeminiService } from '../../services/gemini.service';
@@ -154,12 +153,9 @@ export class ChatbotComponent implements OnInit {
   }
 
   private scrollToBottom(): void {
-    const containerEl = this.chatContainerEl();
-    if (containerEl) {
-      containerEl.nativeElement.scrollTo({
-        top: containerEl.nativeElement.scrollHeight,
+    this.chatContainerEl()?.nativeElement.scrollTo({
+        top: this.chatContainerEl()().nativeElement.scrollHeight,
         behavior: 'smooth'
-      });
-    }
+    });
   }
 }
