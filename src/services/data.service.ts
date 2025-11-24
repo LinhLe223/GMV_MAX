@@ -1,4 +1,5 @@
 
+
 import { Injectable, signal, computed } from '@angular/core';
 import { TiktokAd } from '../models/tiktok-ad.model';
 
@@ -313,34 +314,37 @@ export class DataService {
   });
 
   loadData(data: TiktokAd[], fileName: string) {
-    // Sanitize data before setting it. This ensures consistency for merging.
+    // 1. Validate & Clean data
     const sanitizedData = data.map(ad => {
         const newAd = {...ad};
         newAd.tiktokAccount = (newAd.tiktokAccount || 'Unknown').toLowerCase().trim();
         return newAd;
     });
-
+  
+    // 2. Set data into memory (App will run immediately)
     this.rawData.set(sanitizedData);
     this.fileName.set(fileName);
     this.error.set(null);
-
+  
+    // 3. Try to save cache (Optional)
     try {
+        // Only save a maximum of 2000 rows to avoid filling up storage
+        const dataToCache = sanitizedData.length > 2000 ? sanitizedData.slice(0, 2000) : sanitizedData;
+        
         const cache = {
             fileName: fileName,
-            data: JSON.stringify(sanitizedData) // Save sanitized data to cache
+            data: JSON.stringify(dataToCache),
+            isPartial: sanitizedData.length > 2000 // Flag if only partial data is cached
         };
-        const cacheString = JSON.stringify(cache);
-        localStorage.setItem(DATA_CACHE_KEY, cacheString);
-    } catch(e) {
-        // Check if the error is a QuotaExceededError, which happens when localStorage is full.
-        if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-            console.warn(`LocalStorage quota exceeded. Data from "${fileName}" is too large and will not be cached for the next session.`);
-            // If caching fails, it's crucial to remove any old (potentially smaller) cache
-            // to prevent loading stale data on the next visit.
-            localStorage.removeItem(DATA_CACHE_KEY);
-        } else {
-            console.error("Could not save data to cache", e);
+        localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(cache));
+        
+        if (sanitizedData.length > 2000) {
+          console.warn('File is too large, only caching the first 2000 rows for the next session.');
         }
+    } catch(e) {
+        // If a Quota error occurs, just log a warning and clear old cache. DO NOT show a UI error that blocks the user.
+        console.warn("LocalStorage is full. The app will continue to run normally but will not be cached for the next session.");
+        localStorage.removeItem(DATA_CACHE_KEY);
     }
   }
 

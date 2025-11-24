@@ -1,4 +1,5 @@
 
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { OrderData, InventoryData, KocPnlData, EnrichedOrderData, ProductPnlData, KocDetailItem, GodModeItem, CostStructure, KocOrderItemDetail } from '../models/financial.model';
@@ -489,14 +490,19 @@ export class FinancialsService {
     }
   }
 
+  // --- NEW HELPER: For finding columns intelligently ---
+  // This function can find a value regardless of whether the column name is 'Chi phí', 'CHI PHÍ', 'Cost', or 'Chi phí '
   private getRowValue(row: any, possibleKeys: string[]): any {
-    const normalizedKeys = Object.keys(row).reduce((acc, key) => {
-      acc[key.toLowerCase().trim()] = key;
+    // 1. Normalize the keys of the current row to: lowercase_trim
+    const normalizedRowKeys = Object.keys(row).reduce((acc, key) => {
+      acc[key.toLowerCase().trim()] = key; 
       return acc;
-    }, {} as Record<string, string>);
+    }, {} as any);
   
+    // 2. Iterate through the desired keys
     for (const key of possibleKeys) {
-      const foundKey = normalizedKeys[key.toLowerCase().trim()];
+      const searchKey = key.toLowerCase().trim();
+      const foundKey = normalizedRowKeys[searchKey];
       if (foundKey && row[foundKey] != null && row[foundKey] !== '') {
         return row[foundKey];
       }
@@ -506,15 +512,16 @@ export class FinancialsService {
 
   private mapAdsData(row: any): TiktokAd {
     const cols = {
-      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi'],
+      cost: ['Chi phí', 'Cost', 'Spend', 'Chi phi', 'Total Cost'],
       gmv: ['Doanh thu gộp', 'GMV', 'Gross Revenue', 'Doanh thu'],
-      koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name'],
-      imp: ['Số lượt hiển thị', 'Impressions', 'Lượt xem'],
+      koc: ['Tài khoản TikTok', 'TikTok Account', 'Creator', 'User Name', 'Account'],
+      imp: ['Số lượt hiển thị', 'Impressions', 'Lượt xem', 'Views'],
       click: ['Số lượt nhấp', 'Clicks', 'Lượt nhấp'],
       roi: ['ROI', 'Return on Ad Spend'],
       campaign: ['Tên chiến dịch', 'Campaign Name', 'Campaign'],
       product: ['ID sản phẩm', 'Product ID'],
       video: ['ID video', 'Video ID'],
+      videoTitle: ['Tiêu đề video', 'Video Title', 'Caption'],
       orders: ['Đơn hàng (SKU)', 'Orders'],
       ctr: ['CTR', 'Tỷ lệ nhấp'],
       cvr: ['CVR', 'Tỷ lệ chuyển đổi'],
@@ -544,7 +551,7 @@ export class FinancialsService {
     return {
       campaignName: String(this.getRowValue(row, cols.campaign) || 'N/A'),
       productId: String(this.getRowValue(row, cols.product) || 'N/A'),
-      videoTitle: String(this.getRowValue(row, ['Tiêu đề video', 'Video Title']) || 'N/A'),
+      videoTitle: String(this.getRowValue(row, cols.videoTitle) || 'N/A'),
       videoId: String(this.getRowValue(row, cols.video) || 'N/A'),
       tiktokAccount: String(tiktokAccountVal),
       creativeType: String(this.getRowValue(row, ['Loại nội dung sáng tạo', 'Creative Type']) || 'N/A'),
@@ -574,10 +581,10 @@ export class FinancialsService {
       product_id: String(this.getRowValue(row, ['ID sản phẩm', 'Product ID']) || ''),
       product_name: String(this.getRowValue(row, ['Tên sản phẩm', 'Product Name']) || ''),
       seller_sku: String(this.getRowValue(row, ['Sku người bán', 'Seller SKU', 'SKU']) || ''),
-      revenue: this.parseNumber(this.getRowValue(row, ['Payment Amount', 'Doanh thu', 'Giá'])),
-      koc_username: String(this.getRowValue(row, ['Tên người dùng nhà sáng tạo', 'Creator Name']) || ''),
+      revenue: this.parseNumber(this.getRowValue(row, ['Payment Amount', 'Doanh thu', 'Giá', 'Revenue'])),
+      koc_username: String(this.getRowValue(row, ['Tên người dùng nhà sáng tạo', 'Creator Name', 'Username']) || ''),
       video_id: String(this.getRowValue(row, ['Id nội dung', 'Content ID']) || ''),
-      commission: this.parseNumber(this.getRowValue(row, ['Thanh toán hoa hồng thực tế', 'Commission'])),
+      commission: this.parseNumber(this.getRowValue(row, ['Thanh toán hoa hồng thực tế', 'Commission', 'Affiliate Commission'])),
       status: String(this.getRowValue(row, ['Trạng thái đơn hàng', 'Order Status']) || ''),
       return_status: String(this.getRowValue(row, ['Trả hàng & hoàn tiền', 'Return Status']) || ''),
       quantity: this.parseNumber(this.getRowValue(row, ['Số lượng', 'Quantity']) || 1),
@@ -586,10 +593,10 @@ export class FinancialsService {
 
   private mapInventoryData(row: any): InventoryData {
     return {
-      inventory_sku: String(this.getRowValue(row, ['Mã SKU', 'SKU Code', 'SKU']) || ''),
-      name: String(this.getRowValue(row, ['Tên', 'Product Name']) || ''),
-      stock: this.parseNumber(this.getRowValue(row, ['Toàn bộ kho khả dụng', 'Available Stock', 'Tồn kho'])),
-      cogs: this.parseNumber(this.getRowValue(row, ['Giá vốn', 'Cost Price', 'COGS'])),
+        inventory_sku: String(this.getRowValue(row, ['Mã SKU', 'SKU Code', 'SKU']) || ''),
+        name: String(this.getRowValue(row, ['Tên', 'Product Name', 'Name']) || ''),
+        stock: this.parseNumber(this.getRowValue(row, ['Toàn bộ kho khả dụng', 'Available Stock', 'Tồn kho', 'Stock'])),
+        cogs: this.parseNumber(this.getRowValue(row, ['Giá vốn', 'Cost Price', 'COGS', 'Base Price'])),
     };
   }
 
